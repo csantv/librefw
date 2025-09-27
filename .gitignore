@@ -2,5 +2,9 @@
 !LICENSE
 !.gitignore
 !Makefile
-!librefw.c
 !.clangd
+
+!src/
+!include/
+!src/*.c
+!include/*.h

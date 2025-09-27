@@ -1,7 +1,12 @@
 obj-m += librefw.o
+librefw-objs := src/mod.o src/hooks.o
+
+ccflags-y += -I$(src)/include
+
+KDIR := /lib/modules/$(shell uname -r)/build
 
 all:
-	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
+	make -C $(KDIR) M=$(PWD) modules
 
 clean:
-	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
+	make -C $(KDIR) M=$(PWD) clean
