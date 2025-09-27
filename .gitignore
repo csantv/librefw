@@ -1,0 +1,6 @@
+*
+!LICENSE
+!.gitignore
+!Makefile
+!mod.c
+!.clangd
