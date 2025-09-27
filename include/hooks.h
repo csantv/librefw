@@ -4,8 +4,9 @@
 struct nf_hook_state;
 struct sk_buff;
 
-unsigned int ingress_hook_func(void *priv, struct sk_buff *skb, const struct nf_hook_state *state);
+int lfw_register_hooks(const char *net_dev_name);
+int lfw_unregister_hooks(const char *net_dev_name);
 
-extern struct nf_hook_ops ingress_ops;
+unsigned int lfw_ingress_hook_func(void *priv, struct sk_buff *skb, const struct nf_hook_state *state);
 
 #endif
