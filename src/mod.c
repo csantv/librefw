@@ -7,7 +7,6 @@
 
 struct lfw_state lfw_global_state = {
     .lock = __SPIN_LOCK_UNLOCKED(lfw_global_state.lock),
-    .net_dev_name = NULL,
     .net_dev = NULL,
     .ingress_ops = {}
 };

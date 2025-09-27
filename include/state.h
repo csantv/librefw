@@ -7,7 +7,6 @@
 struct lfw_state {
     spinlock_t lock;
 
-    char *net_dev_name;
     struct net_device *net_dev;
     struct nf_hook_ops ingress_ops;
 };

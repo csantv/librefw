@@ -10,7 +10,6 @@ int lfw_init_state(char *net_dev_name)
     spin_lock(&lfw_global_state.lock);
 
     struct lfw_state *st = &lfw_global_state;
-    st->net_dev_name = net_dev_name;
     st->net_dev = dev_get_by_name(&init_net, net_dev_name);
     if (st->net_dev == NULL) {
         return -ENODEV;
