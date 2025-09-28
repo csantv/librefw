@@ -58,6 +58,7 @@ void lfw_ingress_ipv6_fn(void *priv, struct sk_buff *skb, const struct nf_hook_s
         return;
     }
 
-    pr_info("librefw: source : %pI6 | dest : %pI6\n", &iph->saddr, &iph->daddr);
+    struct tcphdr *tcph = tcp_hdr(skb);
+    pr_info("librefw: source : [%pI6]:%hu | dest : [%pI6]:%hu\n", &iph->saddr, ntohs(tcph->source), &iph->daddr, ntohs(tcph->dest));
 }
 
