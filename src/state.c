@@ -3,7 +3,6 @@
 
 #include <linux/spinlock.h>
 #include <linux/netdevice.h>
-#include <linux/netfilter_ipv4.h>
 
 int lfw_init_state(char *net_dev_name)
 {
@@ -17,9 +16,9 @@ int lfw_init_state(char *net_dev_name)
 
     struct nf_hook_ops *ops = &st->ingress_ops;
     ops->hook = lfw_ingress_hook_func;
-    ops->pf = NFPROTO_INET;
-    ops->hooknum = NF_INET_INGRESS;
-    ops->priority = NF_IP_PRI_FIRST;
+    ops->pf = NFPROTO_NETDEV;
+    ops->hooknum = NF_NETDEV_INGRESS;
+    ops->priority = INT_MIN;
     ops->dev = st->net_dev;
 
     spin_unlock(&lfw_global_state.lock);
