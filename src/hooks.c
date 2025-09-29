@@ -3,62 +3,45 @@
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/ip.h>
-#include <linux/ipv6.h>
-#include <linux/tcp.h>
 
-unsigned int lfw_ingress_hook_func(void *priv, struct sk_buff *skb, const struct nf_hook_state *state)
+static struct nf_hook_ops lfw_ipv4_ops = {
+    .hook = lfw_filter_ipv4_hook_fn,
+    .pf = NFPROTO_IPV4,
+    .hooknum = NF_INET_PRE_ROUTING,
+    .priority = NF_IP_PRI_FILTER
+};
+
+int lfw_register_hooks(void)
 {
-    if (skb == NULL || state == NULL) {
-        return NF_ACCEPT;
+    pr_info("Registering Netfilter hook\n");
+    int ret = nf_register_net_hook(&init_net, &lfw_ipv4_ops);
+    if (ret) {
+        pr_err("librefw: Failed to register Netfilter hook - %d\n", ret);
     }
-
-    unsigned char *iph_start = skb_network_header(skb);
-    if (iph_start == NULL) {
-        return NF_ACCEPT;
-    }
-
-    // IP version is on the first byte
-    unsigned char ip_ver = (*iph_start) >> 4;
-    if (ip_ver == 4) {
-        lfw_ingress_ipv4_fn(priv, skb, state);
-    } else if (ip_ver == 6) {
-        lfw_ingress_ipv6_fn(priv, skb, state);
-    }
-
-    return NF_ACCEPT;
+    return ret;
 }
 
-// TODO: Implement filtering
-void lfw_ingress_ipv4_fn(void *priv, struct sk_buff *skb, const struct nf_hook_state *state)
+void lfw_unregister_hooks(void)
+{
+    nf_unregister_net_hook(&init_net, &lfw_ipv4_ops);
+}
+
+unsigned int lfw_filter_ipv4_hook_fn(void *priv, struct sk_buff *skb, const struct nf_hook_state *state)
 {
     struct iphdr *iph = ip_hdr(skb);
-    if (iph == NULL || iph->protocol != IPPROTO_TCP) {
-        return;
+    if (unlikely(!iph)) {
+        return NF_ACCEPT;
     }
 
-    struct tcphdr *tcph = tcp_hdr(skb);
-    pr_info("librefw: source : %pI4:%hu | dest : %pI4:%hu | seq : %u | ack_seq : %u | window : %hu | csum : 0x%hx | urg_ptr %hu\n",
+    if (iph->protocol != IPPROTO_TCP) {
+        return NF_ACCEPT;
+    }
+
+    pr_info("librefw: source : %pI4 | dest : %pI4\n",
             &(iph->saddr),
-            ntohs(tcph->source),
-            &(iph->daddr),
-            ntohs(tcph->dest),
-            ntohl(tcph->seq),
-            ntohl(tcph->ack_seq),
-            ntohs(tcph->window),
-            ntohs(tcph->check),
-            ntohs(tcph->urg_ptr));
-}
+            &(iph->daddr));
 
-// TODO: Implement filtering
-void lfw_ingress_ipv6_fn(void *priv, struct sk_buff *skb, const struct nf_hook_state *state)
-{
-    struct ipv6hdr *iph = ipv6_hdr(skb);
-
-    if (iph == NULL || iph->nexthdr != IPPROTO_TCP) {
-        return;
-    }
-
-    struct tcphdr *tcph = tcp_hdr(skb);
-    pr_info("librefw: source : [%pI6]:%hu | dest : [%pI6]:%hu\n", &iph->saddr, ntohs(tcph->source), &iph->daddr, ntohs(tcph->dest));
+    // TODO: Implement filtering
+    return NF_ACCEPT;
 }
 

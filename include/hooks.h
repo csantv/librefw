@@ -3,9 +3,9 @@
 
 #include <linux/netfilter.h>
 
-unsigned int lfw_ingress_hook_func(void *priv, struct sk_buff *skb, const struct nf_hook_state *state);
+int lfw_register_hooks(void);
+void lfw_unregister_hooks(void);
 
-void lfw_ingress_ipv4_fn(void *priv, struct sk_buff *skb, const struct nf_hook_state *state);
-void lfw_ingress_ipv6_fn(void *priv, struct sk_buff *skb, const struct nf_hook_state *state);
+unsigned int lfw_filter_ipv4_hook_fn(void *priv, struct sk_buff *skb, const struct nf_hook_state *state);
 
 #endif
