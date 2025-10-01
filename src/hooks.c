@@ -13,7 +13,7 @@ static struct nf_hook_ops lfw_ipv4_ops = {
 
 int lfw_register_hooks(void)
 {
-    pr_info("Registering Netfilter hook\n");
+    pr_info("librefw: Registering Netfilter hook\n");
     int ret = nf_register_net_hook(&init_net, &lfw_ipv4_ops);
     if (ret) {
         pr_err("librefw: Failed to register Netfilter hook - %d\n", ret);

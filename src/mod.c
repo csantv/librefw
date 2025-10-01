@@ -7,13 +7,20 @@
 
 struct lfw_state lfw_global_state = {
     .lock = __SPIN_LOCK_UNLOCKED(lfw_global_state.lock),
+    .bogon_tree = NULL
 };
 
 static int __init lfw_mod_init(void)
 {
     pr_info("librefw: initializing\n");
 
-    int ret = lfw_register_hooks();
+    int ret = lfw_init_state();
+    if (ret < 0) {
+        pr_warn("librefw: Could not initialize state\n");
+        return ret;
+    }
+
+    ret = lfw_register_hooks();
     if (ret < 0) {
         return ret;
     }
