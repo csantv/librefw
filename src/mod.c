@@ -5,11 +5,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 
-struct lfw_state lfw_global_state = {
-    .lock = __SPIN_LOCK_UNLOCKED(lfw_global_state.lock),
-    .bogon_tree = NULL
-};
-
 static int __init lfw_mod_init(void)
 {
     pr_info("librefw: initializing\n");
