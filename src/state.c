@@ -5,16 +5,16 @@
 #include <linux/netdevice.h>
 
 struct lfw_state lfw_global_state = {
-    .bogon_tree = NULL
+    .bg_tree = NULL
 };
 
 int lfw_init_state(void)
 {
     int ret = 0;
 
-    lfw_global_state.bogon_tree = lfw_init_bogon_tree_state();
-    if (lfw_global_state.bogon_tree == NULL) {
-        pr_warn("librefw: Could not initialize bogon tree state\n");
+    lfw_global_state.bg_tree = lfw_init_bg_tree();
+    if (lfw_global_state.bg_tree == NULL) {
+        pr_warn("librefw: Could not initialize bg tree state\n");
         ret = -EINVAL;
     }
 
@@ -23,5 +23,5 @@ int lfw_init_state(void)
 
 void lfw_free_state(void)
 {
-    lfw_free_bogon_tree_state(lfw_global_state.bogon_tree);
+    lfw_free_bg_tree(lfw_global_state.bg_tree);
 }

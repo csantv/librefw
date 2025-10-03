@@ -4,7 +4,7 @@
 #include "bogon.h"
 
 struct lfw_state {
-    struct lfw_bogon_tree_state *bogon_tree;
+    struct lfw_bg_tree *bg_tree;
 };
 
 extern struct lfw_state lfw_global_state;

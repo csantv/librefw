@@ -37,9 +37,9 @@ unsigned int lfw_filter_ipv4_hook_fn(void *priv, struct sk_buff *skb, const stru
         return NF_ACCEPT;
     }
 
-    pr_info("librefw: source : %pI4 | dest : %pI4\n",
-            &(iph->saddr),
-            &(iph->daddr));
+    //pr_info("librefw: source : %pI4 | dest : %pI4\n",
+    //        &(iph->saddr),
+    //        &(iph->daddr));
 
     // TODO: Implement filtering
     return NF_ACCEPT;
