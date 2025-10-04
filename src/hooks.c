@@ -1,8 +1,10 @@
 #include "hooks.h"
+#include "bogon.h"
 
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/ip.h>
+#include <linux/unaligned.h>
 
 static struct nf_hook_ops lfw_ipv4_ops = {
     .hook = lfw_filter_ipv4_hook_fn,
@@ -37,11 +39,11 @@ unsigned int lfw_filter_ipv4_hook_fn(void *priv, struct sk_buff *skb, const stru
         return NF_ACCEPT;
     }
 
-    //pr_info("librefw: source : %pI4 | dest : %pI4\n",
-    //        &(iph->saddr),
-    //        &(iph->daddr));
+    if (lfw_lookup_bg_tree(get_unaligned_be32(&iph->saddr)) > 0) {
+        pr_info_ratelimited("librefw: dropping packet from ip %pI4\n", &iph->saddr);
+        return NF_DROP;
+    }
 
-    // TODO: Implement filtering
     return NF_ACCEPT;
 }
 
