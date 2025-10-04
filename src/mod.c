@@ -27,6 +27,7 @@ static int __init lfw_mod_init(void)
 static void __exit lfw_mod_exit(void)
 {
     lfw_unregister_hooks();
+    lfw_free_state();
     pr_info("librefw: terminated, good bye\n");
 }
 

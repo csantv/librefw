@@ -6,7 +6,6 @@
 
 struct lfw_bg_node {
     struct lfw_bg_node *child[2];
-    int is_prefix;
 };
 
 struct lfw_bg_tree {
@@ -17,6 +16,8 @@ struct lfw_bg_tree {
 
 struct lfw_bg_tree* lfw_init_bg_tree(void);
 void lfw_free_bg_tree(struct lfw_bg_tree *state);
+void lfw_free_bg_node(struct kmem_cache *mem, struct lfw_bg_node *node);
 void lfw_load_bg_tree(struct lfw_bg_tree *state);
+struct lfw_bg_node* lfw_create_node(struct kmem_cache *mem);
 
 #endif

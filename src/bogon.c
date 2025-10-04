@@ -1,4 +1,5 @@
 #include "bogon.h"
+#include "utils.h"
 
 #include <linux/inet.h>
 #include <linux/kstrtox.h>
@@ -17,7 +18,7 @@ struct lfw_bg_tree* lfw_init_bg_tree(void)
         return NULL;
     }
 
-    state->tree = kmem_cache_zalloc(state->mem, GFP_KERNEL);
+    state->tree = lfw_create_node(state->mem);
     if (state->tree == NULL) {
         kmem_cache_destroy(state->mem);
         kfree(state);
@@ -30,21 +31,46 @@ struct lfw_bg_tree* lfw_init_bg_tree(void)
     return state;
 }
 
+struct lfw_bg_node* lfw_create_node(struct kmem_cache *mem)
+{
+    struct lfw_bg_node* node = kmem_cache_zalloc(mem, GFP_KERNEL);
+    if (node == NULL) {
+        return NULL;
+    }
+    node->child[0] = NULL;
+    node->child[1] = NULL;
+    return node;
+}
+
 void lfw_free_bg_tree(struct lfw_bg_tree *state)
 {
     if (state->mem == NULL) {
         return;
     }
 
-    // TODO: free tree nodes
-    kmem_cache_free(state->mem, state->tree);
+    write_lock(&state->lock);
+    lfw_free_bg_node(state->mem, state->tree);
+    write_unlock(&state->lock);
+
     kmem_cache_destroy(state->mem);
     kfree(state);
 }
 
+void lfw_free_bg_node(struct kmem_cache *mem, struct lfw_bg_node *node)
+{
+    if (node == NULL) {
+        return;
+    }
+
+    lfw_free_bg_node(mem, node->child[0]);
+    lfw_free_bg_node(mem, node->child[1]);
+
+    kmem_cache_free(mem, node);
+}
+
 void lfw_load_bg_tree(struct lfw_bg_tree *state)
 {
-    static char *test_prefixes[6] = {
+    char *test_prefixes[6] = {
         "14.102.240.0/20",
         "23.135.225.0/24",
         "23.145.53.0/24",
@@ -53,7 +79,8 @@ void lfw_load_bg_tree(struct lfw_bg_tree *state)
         "162.159.136.234/32"
     };
 
-    read_lock(&state->lock);
+    write_lock(&state->lock);
+
     for (int i = 0; i < 6; ++i) {
         u8 ip_arr[4];
         const char *slash_pos = NULL;
@@ -61,15 +88,27 @@ void lfw_load_bg_tree(struct lfw_bg_tree *state)
         if (ret == 0) {
             break;
         }
-        __be32 ip = *(__be32*)ip_arr;
-        int prefix = 0;
-        ret = kstrtoint(slash_pos + 1, 10, &prefix);
+        u32 ip = get_unaligned_be32(ip_arr);
+        int prefix_len = 0;
+        ret = kstrtoint(slash_pos + 1, 10, &prefix_len);
         if (ret < 0) {
             break;
         }
-        pr_info("librefw: parsed ip is %pI4, prefix %d\n", &ip, prefix);
 
+        size_t num_nodes = 0;
+        struct lfw_bg_node *runner = state->tree;
+        for (int j = 0; j < prefix_len; j++) {
+            int bit = in4_get_bit(ip, j);
+            if (runner->child[bit] == NULL) {
+                runner->child[bit] = lfw_create_node(state->mem);
+                num_nodes++;
+            }
+            runner = runner->child[bit];
+        }
+
+        pr_info("librefw: done parsing ip %08X, %ld nodes created\n", ip, num_nodes);
     }
-    read_unlock(&state->lock);
+
+    write_unlock(&state->lock);
 }
 
