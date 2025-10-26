@@ -1,5 +1,6 @@
 #include "state.h"
 #include "bogon.h"
+#include "nl.h"
 
 #include <linux/spinlock.h>
 #include <linux/netdevice.h>
@@ -18,10 +19,13 @@ int lfw_init_state(void)
         ret = -EINVAL;
     }
 
+    ret = lfw_nl_init();
+
     return ret;
 }
 
 void lfw_free_state(void)
 {
+    lfw_nl_destroy();
     lfw_free_bg_tree(lfw_global_state.bg_tree);
 }

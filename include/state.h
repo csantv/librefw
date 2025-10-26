@@ -3,6 +3,8 @@
 
 #include "bogon.h"
 
+#include <linux/netlink.h>
+
 struct lfw_state {
     struct lfw_bg_tree *bg_tree;
 };
