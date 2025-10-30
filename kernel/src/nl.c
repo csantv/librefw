@@ -1,22 +1,7 @@
 #include "nl.h"
+#include "nl_ops.h"
 
 #include <net/genetlink.h>
-
-enum lfw_nl_attrs {
-    LFW_NL_A_UNSPEC,
-    LFW_NL_A_MSG,
-    __LFW_NL_A_MAX,
-};
-
-#define LFW_NL_A_MAX (__LFW_NL_A_MAX - 1)
-
-enum lfw_nl_cmds {
-    LFW_NL_CMD_UNSPEC,
-    LFW_NL_CMD_ECHO,
-    __LFW_NL_CMD_MAX,
-};
-
-#define LFW_NL_CMD_MAX (__LFW_NL_CMD_MAX - 1)
 
 static struct nla_policy echo_pol[LFW_NL_A_MAX + 1] = {
     [LFW_NL_A_MSG] = { .type = NLA_NUL_STRING },
