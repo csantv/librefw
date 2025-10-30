@@ -8,17 +8,17 @@
 enum lfw_nl_attrs {
     LFW_NL_A_UNSPEC,
     LFW_NL_A_MSG,
-    __LFW_NL_A_MAX,
+    LFW_NL_A_END,
 };
 
-#define LFW_NL_A_MAX (__LFW_NL_A_MAX - 1)
+#define LFW_NL_A_MAX (LFW_NL_A_END - 1)
 
 enum lfw_nl_cmds {
     LFW_NL_CMD_UNSPEC,
     LFW_NL_CMD_ECHO,
-    __LFW_NL_CMD_MAX,
+    LFW_NL_CMD_END,
 };
 
-#define LFW_NL_CMD_MAX (__LFW_NL_CMD_MAX - 1)
+#define LFW_NL_CMD_MAX (LFW_NL_CMD_END - 1)
 
 #endif //LFW_NL_OPS_H
