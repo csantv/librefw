@@ -1,16 +1,9 @@
 #include "nl_ops.h"
-
-#include <netlink/socket.h>
-#include <netlink/netlink.h>
-#include <netlink/genl/ctrl.h>
-#include <netlink/genl/genl.h>
-#include <netlink/genl/family.h>
-
-#include <iostream>
+#include "util/nl.hpp"
 
 int main()
 {
-    std::cout << "Hello, world!" << std::endl;
-
+    lfw::nl::sock sk(LFW_NL_FAMILY_NAME);
+    sk.send_echo_msg();
     return 0;
 }
