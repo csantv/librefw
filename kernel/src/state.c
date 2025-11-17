@@ -5,6 +5,7 @@
 #include <linux/rcupdate.h>
 
 static struct lfw_state __rcu *state = NULL;
+DEFINE_RWLOCK(lock);
 
 int lfw_init_state(void)
 {
@@ -38,4 +39,17 @@ bool lfw_state_is_under_attack(void)
     rcu_read_unlock();
     return under_attack;
 }
+
+void lfw_state_set_is_under_attack(bool new_value)
+{
+    struct lfw_state *new_state = kzalloc(sizeof(struct lfw_state), GFP_KERNEL);
+    write_lock(&lock);
+    struct lfw_state *old_state = rcu_dereference_protected(state, lockdep_is_held(&lock));
+    *new_state = *old_state;
+    new_state->under_attack = new_value;
+    rcu_assign_pointer(state, new_state);
+    write_unlock(&lock);
+    kfree_rcu_mightsleep(old_state);
+}
+
 

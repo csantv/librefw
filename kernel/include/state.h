@@ -11,5 +11,6 @@ int lfw_init_state(void);
 void lfw_free_state(void);
 
 bool lfw_state_is_under_attack(void);
+void lfw_state_set_is_under_attack(bool new_value);
 
 #endif
