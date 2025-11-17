@@ -2,7 +2,9 @@
 #include "bogon.h"
 #include "nl.h"
 
-struct lfw_state *state = NULL;
+#include <linux/rcupdate.h>
+
+static struct lfw_state __rcu *state = NULL;
 
 int lfw_init_state(void)
 {
@@ -27,3 +29,13 @@ void lfw_free_state(void)
     lfw_free_bg_state();
     kfree_rcu_mightsleep(state);
 }
+
+bool lfw_state_is_under_attack(void)
+{
+    rcu_read_lock();
+    struct lfw_state *st = rcu_dereference(state);
+    bool under_attack = st->under_attack;
+    rcu_read_unlock();
+    return under_attack;
+}
+

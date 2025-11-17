@@ -6,7 +6,7 @@
 #include <linux/kstrtox.h>
 #include <linux/unaligned.h>
 
-struct lfw_bg_state *state = NULL;
+static struct lfw_bg_state *state = NULL;
 DEFINE_RWLOCK(lock);
 
 int lfw_init_bg_state(void)
