@@ -1,13 +1,13 @@
 #include "bogon.h"
 #include "utils.h"
 
-#include <linux/rwlock.h>
+#include <linux/spinlock.h>
 #include <linux/inet.h>
 #include <linux/kstrtox.h>
 #include <linux/unaligned.h>
 
 static struct lfw_bg_state *state = NULL;
-DEFINE_RWLOCK(lock);
+static DEFINE_SPINLOCK(lock);
 
 int lfw_init_bg_state(void)
 {
@@ -187,10 +187,10 @@ void lfw_load_bg_tree(void)
             "librefw: done parsing ip %s, used path %s, %ld nodes created\n", test_prefixes[i], ip_path, num_nodes);
     }
 
-    write_lock(&lock);
+    spin_lock(&lock);
     struct lfw_bg_tree *old_tree = rcu_dereference_protected(state->tree, lockdep_is_held(&lock));
     rcu_assign_pointer(state->tree, tree);
-    write_unlock(&lock);
+    spin_unlock(&lock);
 
     call_rcu(&old_tree->rcu, lfw_free_bg_tree);
 }

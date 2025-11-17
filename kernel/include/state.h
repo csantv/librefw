@@ -1,10 +1,11 @@
 #ifndef LFW_STATE
 #define LFW_STATE
 
-#include <linux/types.h>
+#include <linux/rcupdate.h>
 
 struct lfw_state {
     bool under_attack;
+    struct rcu_head rcu;
 };
 
 int lfw_init_state(void);

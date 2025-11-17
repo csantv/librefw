@@ -3,9 +3,10 @@
 #include "nl.h"
 
 #include <linux/rcupdate.h>
+#include <linux/spinlock.h>
 
 static struct lfw_state __rcu *state = NULL;
-DEFINE_RWLOCK(lock);
+static DEFINE_SPINLOCK(lock);
 
 int lfw_init_state(void)
 {
@@ -28,7 +29,7 @@ void lfw_free_state(void)
 {
     lfw_nl_destroy();
     lfw_free_bg_state();
-    kfree_rcu_mightsleep(state);
+    kfree_rcu(state, rcu);
 }
 
 bool lfw_state_is_under_attack(void)
@@ -43,13 +44,12 @@ bool lfw_state_is_under_attack(void)
 void lfw_state_set_is_under_attack(bool new_value)
 {
     struct lfw_state *new_state = kzalloc(sizeof(struct lfw_state), GFP_KERNEL);
-    write_lock(&lock);
+    spin_lock(&lock);
     struct lfw_state *old_state = rcu_dereference_protected(state, lockdep_is_held(&lock));
     *new_state = *old_state;
     new_state->under_attack = new_value;
     rcu_assign_pointer(state, new_state);
-    write_unlock(&lock);
-    kfree_rcu_mightsleep(old_state);
+    spin_unlock(&lock);
+    kfree_rcu(state, rcu);
 }
-
 
