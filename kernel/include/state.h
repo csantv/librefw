@@ -1,15 +1,13 @@
 #ifndef LFW_STATE
 #define LFW_STATE
 
-#include "bogon.h"
-
-#include <linux/netlink.h>
+#include <linux/rcupdate.h>
 
 struct lfw_state {
-    struct lfw_bg_tree *bg_tree;
+    bool under_attack;
 };
 
-extern struct lfw_state lfw_global_state;
+extern struct lfw_state __rcu *state;
 
 int lfw_init_state(void);
 void lfw_free_state(void);

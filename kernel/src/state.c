@@ -2,21 +2,18 @@
 #include "bogon.h"
 #include "nl.h"
 
-#include <linux/spinlock.h>
-#include <linux/netdevice.h>
-
-struct lfw_state lfw_global_state = {
-    .bg_tree = NULL
-};
+struct lfw_state *state = NULL;
 
 int lfw_init_state(void)
 {
-    int ret = 0;
+    struct lfw_state *new_state = kzalloc(sizeof(struct lfw_state), GFP_KERNEL);
+    new_state->under_attack = false;
+    rcu_assign_pointer(state, new_state);
 
-    lfw_global_state.bg_tree = lfw_init_bg_tree();
-    if (lfw_global_state.bg_tree == NULL) {
-        pr_warn("librefw: Could not initialize bg tree state\n");
-        ret = -EINVAL;
+    int ret = lfw_init_bg_state();
+    if (ret < 0) {
+        pr_err("librefw: could not initialize bogon state %d\n", ret);
+        return ret;
     }
 
     ret = lfw_nl_init();
@@ -27,5 +24,6 @@ int lfw_init_state(void)
 void lfw_free_state(void)
 {
     lfw_nl_destroy();
-    lfw_free_bg_tree(lfw_global_state.bg_tree);
+    lfw_free_bg_state();
+    kfree_rcu_mightsleep(state);
 }
