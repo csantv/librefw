@@ -1,18 +1,21 @@
 #include "state.h"
 #include "bogon.h"
 #include "nl.h"
+#include "hcf.h"
 
-#include <linux/rcupdate.h>
+#include <linux/rwlock.h>
 #include <linux/spinlock.h>
 
-static struct lfw_state __rcu *state = NULL;
-static DEFINE_SPINLOCK(lock);
+static struct lfw_state *state = NULL;
+static DEFINE_RWLOCK(lock);
 
 int lfw_init_state(void)
 {
-    struct lfw_state *new_state = kzalloc(sizeof(struct lfw_state), GFP_KERNEL);
-    new_state->under_attack = false;
-    rcu_assign_pointer(state, new_state);
+    state = kzalloc(sizeof(struct lfw_state), GFP_KERNEL);
+    if (state == NULL) {
+        return -ENOMEM;
+    }
+    state->under_attack = false;
 
     int ret = lfw_init_bg_state();
     if (ret < 0) {
@@ -21,6 +24,7 @@ int lfw_init_state(void)
     }
 
     ret = lfw_nl_init();
+    lfw_init_hc_state();
 
     return ret;
 }
@@ -29,27 +33,22 @@ void lfw_free_state(void)
 {
     lfw_nl_destroy();
     lfw_free_bg_state();
-    kfree_rcu(state, rcu);
+    lfw_free_hc_state();
+    kfree(state);
 }
 
 bool lfw_state_is_under_attack(void)
 {
-    rcu_read_lock();
-    struct lfw_state *st = rcu_dereference(state);
-    bool under_attack = st->under_attack;
-    rcu_read_unlock();
+    read_lock(&lock);
+    bool under_attack = state->under_attack;
+    read_unlock(&lock);
     return under_attack;
 }
 
-void lfw_state_set_is_under_attack(bool new_value)
+void lfw_state_set_under_attack(bool new_value)
 {
-    struct lfw_state *new_state = kzalloc(sizeof(struct lfw_state), GFP_KERNEL);
-    spin_lock(&lock);
-    struct lfw_state *old_state = rcu_dereference_protected(state, lockdep_is_held(&lock));
-    *new_state = *old_state;
-    new_state->under_attack = new_value;
-    rcu_assign_pointer(state, new_state);
-    spin_unlock(&lock);
-    kfree_rcu(state, rcu);
+    write_lock(&lock);
+    state->under_attack = new_value;
+    write_unlock(&lock);
 }
 
