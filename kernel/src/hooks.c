@@ -1,5 +1,6 @@
 #include "hooks.h"
 #include "bogon.h"
+#include "hcf.h"
 
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
@@ -38,6 +39,8 @@ unsigned int lfw_filter_ipv4_hook_fn(void *priv, struct sk_buff *skb, const stru
     if (iph->protocol != IPPROTO_TCP) {
         return NF_ACCEPT;
     }
+
+    lfw_add_hc_node(get_unaligned_be32(&iph->saddr), iph->ttl);
 
     if (lfw_lookup_bg_tree(get_unaligned_be32(&iph->saddr)) > 0) {
         pr_info_ratelimited("librefw: dropping packet from ip %pI4\n", &iph->saddr);

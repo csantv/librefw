@@ -2,16 +2,30 @@
 
 #include <linux/workqueue.h>
 #include <linux/slab.h>
-#include <linux/timer.h>
+
+struct lfw_hc_node {
+    struct lfw_hc_node *child[2];
+    u8 hc;
+    u8 ttl;
+};
+
+struct lfw_hc_add_node_task {
+    struct work_struct real_work;
+    u32 source_ip;
+    u8 ttl;
+};
 
 struct lfw_hc_state {
-    struct work_struct work;
     struct workqueue_struct *workqueue;
-    struct timer_list timer;
+    struct kmem_cache *mem;
+    struct lfw_hc_node *tree;
 };
 
 int lfw_init_hc_state(void);
 void lfw_free_hc_state(void);
 
 void lfw_do_work(struct work_struct *work);
-void lfw_hc_timer_cb(struct timer_list *timer);
+
+struct lfw_hc_node* lfw_create_hc_node(void);
+void lfw_free_hc_node(struct lfw_hc_node *node);
+int lfw_add_hc_node(u32 source_ip, u8 ttl);
