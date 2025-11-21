@@ -207,10 +207,8 @@ int lfw_lookup_bg_tree(u32 ip)
         goto end;
     }
 
-    char ip_path[32] = {};
     for (int i = 0; i < 32; i++) {
         int bit = in4_get_bit(ip, i);
-        ip_path[i] = bit + '0';
 
         if (runner->is_bogon) {
             result = 1;

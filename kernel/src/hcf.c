@@ -1,4 +1,5 @@
 #include "hcf.h"
+#include "utils.h"
 
 #include <linux/rwlock.h>
 
@@ -69,11 +70,51 @@ void lfw_free_hc_state(void)
 
 void lfw_do_work(struct work_struct *work)
 {
-    write_lock(&lock);
     struct lfw_hc_add_node_task *task = container_of(work, struct lfw_hc_add_node_task, real_work);
-    pr_info_ratelimited("librefw: adding new node for ip %pI4 with ttl %d\n", &task->source_ip, task->ttl);
-    kfree(task);
+    int new_nodes = 0;
+    write_lock(&lock);
+    struct lfw_hc_node *runner = state->tree;
+    for (int i = 0; i < 24; i++) {
+        int bit = in4_get_bit(task->source_ip, i);
+        if (runner->child[bit] == NULL) {
+            runner->child[bit] = lfw_create_hc_node();
+            new_nodes++;
+        }
+        runner = runner->child[bit];
+    }
+    runner->ttl = task->ttl;
+    runner->hc = 64 - task->ttl;
     write_unlock(&lock);
+    kfree(task);
+}
+
+int lfw_lookup_hc_tree(u32 source_ip, u8 ttl)
+{
+    int result = 0;
+    read_lock(&lock);
+    struct lfw_hc_node *runner = state->tree;
+    if (runner == NULL) {
+        result = -1;
+        goto end;
+    }
+
+    for (int i = 0; i < 24; i++) {
+        int bit = in4_get_bit(source_ip, i);
+        if (runner->child[bit] == NULL) {
+            result = -1;
+            goto end;
+        }
+        runner = runner->child[bit];
+    }
+
+    int hop_count = 64 - ttl;
+    if (runner != NULL && runner->hc == hop_count) {
+        result = 1;
+    }
+
+end:
+    read_unlock(&lock);
+    return result;
 }
 
 int lfw_add_hc_node(u32 source_ip, u8 ttl)

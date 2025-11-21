@@ -25,6 +25,7 @@ int lfw_init_hc_state(void);
 void lfw_free_hc_state(void);
 
 void lfw_do_work(struct work_struct *work);
+int lfw_lookup_hc_tree(u32 source_ip, u8 tll);
 
 struct lfw_hc_node* lfw_create_hc_node(void);
 void lfw_free_hc_node(struct lfw_hc_node *node);
