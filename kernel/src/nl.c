@@ -3,15 +3,24 @@
 
 #include <net/genetlink.h>
 
-static struct nla_policy echo_pol[LFW_NL_A_MAX + 1] = {
+static struct nla_policy lfw_ip_prefix_pol[] = {
+    [LFW_NL_A_N_IP_ADDR] = { .type = NLA_U32 },
+    [LFW_NL_A_N_IP_PREFIX_LEN] = { .type = NLA_U8 }
+};
+
+static struct nla_policy lfw_pol[] = {
     [LFW_NL_A_MSG] = { .type = NLA_NUL_STRING },
+    [LFW_NL_A_IP_PREFIX] = NLA_POLICY_NESTED(lfw_ip_prefix_pol)
 };
 
 static struct genl_ops lfw_nl_ops[] = {
     {
         .cmd = LFW_NL_CMD_ECHO,
-        .policy = echo_pol,
         .doit = lfw_nl_fn_echo
+    },
+    {
+        .cmd = LFW_NL_CMD_BOGON_SET,
+        .doit = lfw_bogon_set
     }
 };
 
@@ -27,6 +36,7 @@ static struct genl_family lfw_nl_family = {
     .n_ops = ARRAY_SIZE(lfw_nl_ops),
     .mcgrps = lfw_nl_mcgrps,
     .n_mcgrps = ARRAY_SIZE(lfw_nl_mcgrps),
+    .policy = lfw_pol
 };
 
 int lfw_nl_init(void)
@@ -85,6 +95,23 @@ int lfw_nl_fn_echo(struct sk_buff *skb, struct genl_info *info)
 
 out:
     return ret;
+}
+
+int lfw_bogon_set(struct sk_buff *skb, struct genl_info *info)
+{
+    if (!info->attrs[LFW_NL_A_IP_PREFIX]) {
+        pr_warn("librefw: received empty bogon list\n");
+        return -EINVAL;
+    }
+
+    struct nlattr *pos = NULL;
+    int rem;
+    pr_info("librefw: received bogon list\n");
+    nla_for_each_nested(pos, info->attrs[LFW_NL_A_IP_PREFIX], rem) {
+        pr_info("librefw: parsing item %d %d\n", nla_get_u32(&pos[LFW_NL_A_N_IP_ADDR]), nla_get_u8(&pos[LFW_NL_A_N_IP_PREFIX_LEN]));
+    }
+
+    return 0;
 }
 
 int lfw_nl_fn_echo_mc(void)

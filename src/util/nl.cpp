@@ -68,4 +68,38 @@ auto echo_reply_handler(struct nl_msg *msg, [[maybe_unused]] void *arg) -> int {
     return NL_OK;
 }
 
+void sock::send_bogon_list()
+{
+    c_unique_ptr<struct nl_msg, nlmsg_free> msg{nlmsg_alloc()};
+
+    void *hdr = genlmsg_put(msg.get(), NL_AUTO_PORT, NL_AUTO_SEQ, m_family_id, 0, 0, LFW_NL_CMD_BOGON_SET, LFW_NL_FAMILY_VER);
+    if (!hdr) {
+        std::cout << "genlmsg_put failed" << std::endl;
+        return;
+    }
+
+    for (int i = 0; i < 3; i++) {
+        struct nlattr *container = nla_nest_start(msg.get(), LFW_NL_A_IP_PREFIX);
+        if (container == nullptr) {
+            std::cout << "nla_nest_start failed" << std::endl;
+            return;
+        }
+
+        if (nla_put_u32(msg.get(), LFW_NL_A_N_IP_ADDR, 1 + i) < 0 ||
+            nla_put_u8(msg.get(), LFW_NL_A_N_IP_PREFIX_LEN, 24 + i) < 0) {
+            std::cout << "failed to pack structures" << std::endl;
+        };
+
+        nla_nest_end(msg.get(), container);
+    }
+
+    int ret = nl_send_auto(sk.get(), msg.get());
+    if (ret < 0) {
+        std::cout << "nl_send_auto failed - " << ret << std::endl;
+    } else {
+        std::cout << "sent bogon list - " << ret << std::endl;
+    }
+    nl_recvmsgs_default(sk.get());
+}
+
 }

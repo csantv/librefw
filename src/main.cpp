@@ -4,6 +4,6 @@
 int main()
 {
     lfw::nl::sock sk(LFW_NL_FAMILY_NAME);
-    sk.send_echo_msg();
+    sk.send_bogon_list();
     return 0;
 }
