@@ -31,8 +31,6 @@ int lfw_init_bg_state(void)
     }
     rcu_assign_pointer(st->tree, tree);
 
-    lfw_load_bg_tree();
-
     return 0;
 }
 

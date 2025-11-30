@@ -13,11 +13,16 @@ add_executable(librefw)
 
 find_package(PkgConfig REQUIRED)
 find_package(Threads REQUIRED)
+find_package(CLI11 CONFIG REQUIRED)
 
 pkg_check_modules(NL REQUIRED IMPORTED_TARGET libnl-genl-3.0)
 
 target_sources(librefw PRIVATE src/main.cpp src/util/nl.cpp)
 target_include_directories(librefw PRIVATE include/)
-target_link_libraries(librefw PRIVATE Threads::Threads PkgConfig::NL)
+target_link_libraries(librefw PRIVATE
+    Threads::Threads
+    CLI11::CLI11
+    PkgConfig::NL
+)
 
 install(TARGETS librefw RUNTIME)

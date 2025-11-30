@@ -2,12 +2,16 @@
 #include "util/ptr.hpp"
 #include "nl_ops.h"
 
+#include <arpa/inet.h>
+
 #include <netlink/genl/ctrl.h>
 #include <netlink/genl/genl.h>
 
 #include <array>
 #include <iostream>
 #include <system_error>
+#include <string>
+#include <fstream>
 
 namespace lfw::nl {
 
@@ -68,8 +72,15 @@ auto echo_reply_handler(struct nl_msg *msg, [[maybe_unused]] void *arg) -> int {
     return NL_OK;
 }
 
-void sock::send_bogon_list()
+void sock::send_bogon_list(std::string filename)
 {
+    std::ifstream file(filename);
+
+    if (!file) {
+        std::cerr << "Could not open " << filename << '\n';
+        return;
+    }
+
     c_unique_ptr<struct nl_msg, nlmsg_free> msg{nlmsg_alloc()};
 
     void *hdr = genlmsg_put(msg.get(), NL_AUTO_PORT, NL_AUTO_SEQ, m_family_id, 0, 0, LFW_NL_CMD_BOGON_SET, LFW_NL_FAMILY_VER);
@@ -78,8 +89,40 @@ void sock::send_bogon_list()
         return;
     }
 
-    for (int i = 0; i < 3; i++) {
+    std::string line;
+    unsigned int num_lines = 0;
+    while (std::getline(file, line)) {
+        auto slash_pos = line.find('/');
+        std::string ip_prefix = line.substr(0, slash_pos);
+        unsigned short ip_prefix_len = std::stoi(line.substr(slash_pos + 1));
+
+        struct in_addr addr;
+        inet_pton(AF_INET, ip_prefix.c_str(), &addr);
+
         struct nlattr *container = nla_nest_start(msg.get(), LFW_NL_A_IP_PREFIX);
+        nla_put_u32(msg.get(), LFW_NL_A_N_IP_ADDR, addr.s_addr);
+        nla_put_u8(msg.get(), LFW_NL_A_N_IP_PREFIX_LEN, ip_prefix_len);
+        nla_nest_end(msg.get(), container);
+
+        num_lines++;
+    }
+
+    nla_put_u32(msg.get(), LFW_NL_A_NUM_IP_PREFIX, num_lines);
+
+    int ret = nl_send_auto(sk.get(), msg.get());
+    if (ret < 0) {
+        std::cout << "nl_send_auto failed - " << ret << std::endl;
+    } else {
+        std::cout << "sent bogon list - " << ret << std::endl;
+    }
+    nl_recvmsgs_default(sk.get());
+
+    /*
+
+
+    nla_put_u32(msg.get(), LFW_NL_A_NUM_IP_PREFIX, 3);
+
+    for (int i = 0; i < 3; i++) {
         if (container == nullptr) {
             std::cout << "nla_nest_start failed" << std::endl;
             return;
@@ -91,15 +134,8 @@ void sock::send_bogon_list()
         };
 
         nla_nest_end(msg.get(), container);
-    }
+    }*/
 
-    int ret = nl_send_auto(sk.get(), msg.get());
-    if (ret < 0) {
-        std::cout << "nl_send_auto failed - " << ret << std::endl;
-    } else {
-        std::cout << "sent bogon list - " << ret << std::endl;
-    }
-    nl_recvmsgs_default(sk.get());
 }
 
 }

@@ -7,6 +7,7 @@
 enum lfw_nl_attrs {
     LFW_NL_A_UNSPEC,
     LFW_NL_A_MSG,
+    LFW_NL_A_NUM_IP_PREFIX,
     LFW_NL_A_IP_PREFIX,
     LFW_NL_A_N_IP_ADDR,
     LFW_NL_A_N_IP_PREFIX_LEN,

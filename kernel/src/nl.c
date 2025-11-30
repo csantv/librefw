@@ -4,12 +4,13 @@
 #include <net/genetlink.h>
 
 static struct nla_policy lfw_ip_prefix_pol[] = {
-    [LFW_NL_A_N_IP_ADDR] = { .type = NLA_U32 },
+    [LFW_NL_A_N_IP_ADDR] = { .type = NLA_BE32 },
     [LFW_NL_A_N_IP_PREFIX_LEN] = { .type = NLA_U8 }
 };
 
 static struct nla_policy lfw_pol[] = {
     [LFW_NL_A_MSG] = { .type = NLA_NUL_STRING },
+    [LFW_NL_A_NUM_IP_PREFIX] = { .type = NLA_U32 },
     [LFW_NL_A_IP_PREFIX] = NLA_POLICY_NESTED(lfw_ip_prefix_pol)
 };
 
@@ -101,16 +102,18 @@ int lfw_bogon_set(struct sk_buff *skb, struct genl_info *info)
 {
     pr_info("librefw: received bogon list\n");
 
+    u32 num_prefix = nla_get_u32_default(info->attrs[LFW_NL_A_NUM_IP_PREFIX], 0);
+    pr_info("librefw: get number of prefixes %d\n", num_prefix);
+
     struct nlattr *pos = NULL;
     int rem = 0;
-
     nla_for_each_attr_type(pos, LFW_NL_A_IP_PREFIX, nlmsg_attrdata(info->nlhdr, GENL_HDRLEN), nlmsg_attrlen(info->nlhdr, GENL_HDRLEN), rem) {
         int nested_rem = 0;
         struct nlattr *nested_pos = NULL;
         nla_for_each_nested(nested_pos, pos, nested_rem) {
             switch (nla_type(nested_pos)) {
                 case LFW_NL_A_N_IP_ADDR:
-                    pr_info("librefw: got ip addr %d\n", nla_get_u32(nested_pos));
+                    pr_info("librefw: got ip addr %d\n", nla_get_be32(nested_pos));
                     break;
                 case LFW_NL_A_N_IP_PREFIX_LEN:
                     pr_info("librefw: got prefix len %d\n", nla_get_u8(nested_pos));
