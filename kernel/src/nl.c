@@ -99,16 +99,26 @@ out:
 
 int lfw_bogon_set(struct sk_buff *skb, struct genl_info *info)
 {
-    if (!info->attrs[LFW_NL_A_IP_PREFIX]) {
-        pr_warn("librefw: received empty bogon list\n");
-        return -EINVAL;
-    }
+    pr_info("librefw: received bogon list\n");
 
     struct nlattr *pos = NULL;
-    int rem;
-    pr_info("librefw: received bogon list\n");
-    nla_for_each_nested(pos, info->attrs[LFW_NL_A_IP_PREFIX], rem) {
-        pr_info("librefw: parsing item %d %d\n", nla_get_u32(&pos[LFW_NL_A_N_IP_ADDR]), nla_get_u8(&pos[LFW_NL_A_N_IP_PREFIX_LEN]));
+    int rem = 0;
+
+    nla_for_each_attr_type(pos, LFW_NL_A_IP_PREFIX, nlmsg_attrdata(info->nlhdr, GENL_HDRLEN), nlmsg_attrlen(info->nlhdr, GENL_HDRLEN), rem) {
+        int nested_rem = 0;
+        struct nlattr *nested_pos = NULL;
+        nla_for_each_nested(nested_pos, pos, nested_rem) {
+            switch (nla_type(nested_pos)) {
+                case LFW_NL_A_N_IP_ADDR:
+                    pr_info("librefw: got ip addr %d\n", nla_get_u32(nested_pos));
+                    break;
+                case LFW_NL_A_N_IP_PREFIX_LEN:
+                    pr_info("librefw: got prefix len %d\n", nla_get_u8(nested_pos));
+                    break;
+                default:
+                    pr_warn("librefw: got unexpected value in bogon message\n");
+            }
+        }
     }
 
     return 0;
