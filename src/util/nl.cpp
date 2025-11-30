@@ -31,6 +31,13 @@ sock::sock(const char* family_name):
     if (ret < 0) {
         throw std::system_error(std::error_code(-ret, std::generic_category()), "nl_socket_modify_cb");
     }
+
+    const size_t bufsize = 4 * 1024 * 1024;
+    ret = nl_socket_set_buffer_size(sk.get(), bufsize, bufsize);
+    if (ret < 0) {
+        throw std::system_error(std::error_code(-ret, std::generic_category()), "could not set buffer size");
+    }
+    nlmsg_set_default_size(bufsize);
 }
 
 void sock::send_echo_msg()
@@ -100,14 +107,19 @@ void sock::send_bogon_list(std::string filename)
         inet_pton(AF_INET, ip_prefix.c_str(), &addr);
 
         struct nlattr *container = nla_nest_start(msg.get(), LFW_NL_A_IP_PREFIX);
-        nla_put_u32(msg.get(), LFW_NL_A_N_IP_ADDR, addr.s_addr);
-        nla_put_u8(msg.get(), LFW_NL_A_N_IP_PREFIX_LEN, ip_prefix_len);
+        if (nla_put_u32(msg.get(), LFW_NL_A_N_IP_ADDR, addr.s_addr) < 0 ||
+            nla_put_u8(msg.get(), LFW_NL_A_N_IP_PREFIX_LEN, ip_prefix_len) < 0) {
+            std::cerr << "failed to pack structures\n";
+            nla_nest_cancel(msg.get(), container);
+            break;
+        }
         nla_nest_end(msg.get(), container);
 
         num_lines++;
     }
 
     nla_put_u32(msg.get(), LFW_NL_A_NUM_IP_PREFIX, num_lines);
+
 
     int ret = nl_send_auto(sk.get(), msg.get());
     if (ret < 0) {

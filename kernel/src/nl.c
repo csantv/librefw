@@ -1,10 +1,12 @@
 #include "nl.h"
 #include "nl_ops.h"
+#include "bogon.h"
 
 #include <net/genetlink.h>
+#include <linux/vmalloc.h>
 
 static struct nla_policy lfw_ip_prefix_pol[] = {
-    [LFW_NL_A_N_IP_ADDR] = { .type = NLA_BE32 },
+    [LFW_NL_A_N_IP_ADDR] = { .type = NLA_U32 },
     [LFW_NL_A_N_IP_PREFIX_LEN] = { .type = NLA_U8 }
 };
 
@@ -103,7 +105,18 @@ int lfw_bogon_set(struct sk_buff *skb, struct genl_info *info)
     pr_info("librefw: received bogon list\n");
 
     u32 num_prefix = nla_get_u32_default(info->attrs[LFW_NL_A_NUM_IP_PREFIX], 0);
+    if (!num_prefix) {
+        pr_warn("librefw: did not receive number of prefixes\n");
+        return -EINVAL;
+    }
+
     pr_info("librefw: get number of prefixes %d\n", num_prefix);
+    struct lfw_ip_prefix *prefix_buf = vzalloc(sizeof(struct lfw_ip_prefix) * num_prefix);
+    if (prefix_buf == NULL) {
+        pr_warn("librefw: could not allocate buffer for ip prefixes\n");
+        return -ENOMEM;
+    }
+    struct lfw_ip_prefix *runner = prefix_buf;
 
     struct nlattr *pos = NULL;
     int rem = 0;
@@ -113,16 +126,20 @@ int lfw_bogon_set(struct sk_buff *skb, struct genl_info *info)
         nla_for_each_nested(nested_pos, pos, nested_rem) {
             switch (nla_type(nested_pos)) {
                 case LFW_NL_A_N_IP_ADDR:
-                    pr_info("librefw: got ip addr %d\n", nla_get_be32(nested_pos));
+                    runner->ip_prefix = nla_get_u32(nested_pos);
                     break;
                 case LFW_NL_A_N_IP_PREFIX_LEN:
-                    pr_info("librefw: got prefix len %d\n", nla_get_u8(nested_pos));
+                    runner->ip_prefix_len = nla_get_u8(nested_pos);
                     break;
                 default:
                     pr_warn("librefw: got unexpected value in bogon message\n");
             }
         }
+        runner++;
     }
+
+    lfw_load_bg_tree(prefix_buf, num_prefix);
+    vfree(prefix_buf);
 
     return 0;
 }
