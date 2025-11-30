@@ -114,11 +114,9 @@ void lfw_load_bg_tree(struct lfw_ip_prefix *prefixes, u32 len)
             runner = runner->child[bit];
         }
         runner->is_bogon = 1;
-
-        pr_info_ratelimited(
-            "librefw: done parsing ip %pI4, used path %s, %ld nodes created\n", &prefixes[i].ip_prefix, ip_path, num_nodes);
     }
 
+    pr_info("librefw: replacing old tree with new tree\n");
     spin_lock(&lock);
     struct lfw_bg_tree *old_tree = rcu_dereference_protected(state->tree, lockdep_is_held(&lock));
     rcu_assign_pointer(state->tree, tree);

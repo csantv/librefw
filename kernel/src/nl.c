@@ -102,15 +102,13 @@ out:
 
 int lfw_bogon_set(struct sk_buff *skb, struct genl_info *info)
 {
-    pr_info("librefw: received bogon list\n");
-
     u32 num_prefix = nla_get_u32_default(info->attrs[LFW_NL_A_NUM_IP_PREFIX], 0);
     if (!num_prefix) {
         pr_warn("librefw: did not receive number of prefixes\n");
         return -EINVAL;
     }
 
-    pr_info("librefw: get number of prefixes %d\n", num_prefix);
+    pr_info("librefw: inserting %d prefixes into bogon filter list\n", num_prefix);
     struct lfw_ip_prefix *prefix_buf = vzalloc(sizeof(struct lfw_ip_prefix) * num_prefix);
     if (prefix_buf == NULL) {
         pr_warn("librefw: could not allocate buffer for ip prefixes\n");
@@ -140,6 +138,8 @@ int lfw_bogon_set(struct sk_buff *skb, struct genl_info *info)
 
     lfw_load_bg_tree(prefix_buf, num_prefix);
     vfree(prefix_buf);
+
+    pr_info("librefw: done inserting %d prefixes into bogon filter list\n", num_prefix);
 
     return 0;
 }
