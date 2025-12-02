@@ -44,13 +44,13 @@ void sock::send_echo_msg()
 {
     c_unique_ptr<struct nl_msg, nlmsg_free> msg{nlmsg_alloc()};
 
-    void *hdr = genlmsg_put(msg.get(), NL_AUTO_PORT, NL_AUTO_SEQ, m_family_id, 0, 0, LFW_NL_CMD_ECHO, LFW_NL_FAMILY_VER);
+    void *hdr = genlmsg_put(msg.get(), NL_AUTO_PORT, NL_AUTO_SEQ, m_family_id, 0, 0, LFW_NLX_ECHO, LFW_NL_FAMILY_VER);
     if (!hdr) {
         std::cerr << "genlmsg_put failed" << std::endl;
         return;
     }
 
-    int ret = nla_put_string(msg.get(), LFW_NL_A_MSG, "Hello from C++, Netlink!");
+    int ret = nla_put_string(msg.get(), LFW_NLA_MSG, "Hello from C++, Netlink!");
     if (ret < 0) {
         std::cerr << "nla_put_string failed" << std::endl;
         return;
@@ -69,12 +69,12 @@ auto echo_reply_handler(struct nl_msg *msg, [[maybe_unused]] void *arg) -> int {
         std::cerr << "unable to parse message: " << std::error_code(-ret, std::generic_category()).message() << std::endl;
         return NL_SKIP;
     }
-    if (!tb.at(LFW_NL_A_MSG)) {
+    if (!tb.at(LFW_NLA_MSG)) {
         std::cerr << "msg attribute missing from message" << std::endl;
         return NL_SKIP;
     }
 
-    std::cout << "message received: " << nla_get_string(tb[LFW_NL_A_MSG]) << std::endl;
+    std::cout << "message received: " << nla_get_string(tb[LFW_NLA_MSG]) << std::endl;
 
     return NL_OK;
 }
@@ -90,7 +90,7 @@ void sock::send_bogon_list(std::string filename)
 
     c_unique_ptr<struct nl_msg, nlmsg_free> msg{nlmsg_alloc()};
 
-    void *hdr = genlmsg_put(msg.get(), NL_AUTO_PORT, NL_AUTO_SEQ, m_family_id, 0, 0, LFW_NL_CMD_BOGON_SET, LFW_NL_FAMILY_VER);
+    void *hdr = genlmsg_put(msg.get(), NL_AUTO_PORT, NL_AUTO_SEQ, m_family_id, 0, 0, LFW_NLX_BOGON_SET, LFW_NL_FAMILY_VER);
     if (!hdr) {
         std::cout << "genlmsg_put failed" << std::endl;
         return;
@@ -106,9 +106,9 @@ void sock::send_bogon_list(std::string filename)
         struct in_addr addr;
         inet_pton(AF_INET, ip_prefix.c_str(), &addr);
 
-        struct nlattr *container = nla_nest_start(msg.get(), LFW_NL_A_IP_PREFIX);
-        if (nla_put_u32(msg.get(), LFW_NL_A_N_IP_ADDR, addr.s_addr) < 0 ||
-            nla_put_u8(msg.get(), LFW_NL_A_N_IP_PREFIX_LEN, ip_prefix_len) < 0) {
+        struct nlattr *container = nla_nest_start(msg.get(), LFW_NLA_IP_PREFIX);
+        if (nla_put_u32(msg.get(), LFW_NLA_N_IP_ADDR, addr.s_addr) < 0 ||
+            nla_put_u8(msg.get(), LFW_NLA_N_IP_PREFIX_LEN, ip_prefix_len) < 0) {
             std::cerr << "failed to pack structures\n";
             nla_nest_cancel(msg.get(), container);
             break;
@@ -118,7 +118,7 @@ void sock::send_bogon_list(std::string filename)
         num_lines++;
     }
 
-    nla_put_u32(msg.get(), LFW_NL_A_NUM_IP_PREFIX, num_lines);
+    nla_put_u32(msg.get(), LFW_NLA_NUM_IP_PREFIX, num_lines);
 
 
     int ret = nl_send_auto(sk.get(), msg.get());
@@ -127,27 +127,6 @@ void sock::send_bogon_list(std::string filename)
     } else {
         std::cout << "sent bogon list - " << ret << std::endl;
     }
-    nl_recvmsgs_default(sk.get());
-
-    /*
-
-
-    nla_put_u32(msg.get(), LFW_NL_A_NUM_IP_PREFIX, 3);
-
-    for (int i = 0; i < 3; i++) {
-        if (container == nullptr) {
-            std::cout << "nla_nest_start failed" << std::endl;
-            return;
-        }
-
-        if (nla_put_u32(msg.get(), LFW_NL_A_N_IP_ADDR, 1 + i) < 0 ||
-            nla_put_u8(msg.get(), LFW_NL_A_N_IP_PREFIX_LEN, 24 + i) < 0) {
-            std::cout << "failed to pack structures" << std::endl;
-        };
-
-        nla_nest_end(msg.get(), container);
-    }*/
-
 }
 
 }
