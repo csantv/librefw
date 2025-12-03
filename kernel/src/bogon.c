@@ -1,5 +1,6 @@
 #include "bogon.h"
 #include "utils.h"
+#include "nl.h"
 
 #include <linux/spinlock.h>
 #include <linux/inet.h>
@@ -94,7 +95,8 @@ void lfw_load_bg_tree(struct lfw_ip_prefix *prefixes, u32 len)
     }
 
     for (int i = 0; i < len; ++i) {
-        u32 ip = get_unaligned_be32(&prefixes[i].ip_prefix);
+        u32 ip_be = prefixes[i].ip_prefix;
+        u32 ip = get_unaligned_be32(&ip_be);
         size_t num_nodes = 0;
         struct lfw_bg_node *runner = tree->root;
 
@@ -114,6 +116,7 @@ void lfw_load_bg_tree(struct lfw_ip_prefix *prefixes, u32 len)
             runner = runner->child[bit];
         }
         runner->is_bogon = 1;
+        lfw_log(LOGLEVEL_INFO, "done parsing ip %pI4, used path %s, %ld nodes created", &ip_be, ip_path, num_nodes);
     }
 
     pr_info("librefw: replacing old tree with new tree\n");

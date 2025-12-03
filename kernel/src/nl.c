@@ -34,7 +34,7 @@ static struct genl_multicast_group lfw_nl_mcgrps[] = {
 static struct genl_family lfw_nl_family = {
     .name = LFW_NL_FAMILY_NAME,
     .version = LFW_NL_FAMILY_VER,
-    .maxattr = LFW_NL_A_MAX,
+    .maxattr = LFW_NLA_MAX,
     .ops = lfw_nl_ops,
     .n_ops = ARRAY_SIZE(lfw_nl_ops),
     .mcgrps = lfw_nl_mcgrps,
@@ -100,7 +100,7 @@ int lfw_bogon_set(struct sk_buff *skb, struct genl_info *info)
     lfw_load_bg_tree(prefix_buf, num_prefix);
     vfree(prefix_buf);
 
-    lfw_log(LOGLEVEL_INFO, "done inserting %d prefixes into bogon filter list\n", num_prefix);
+    lfw_log(LOGLEVEL_INFO, "done inserting %d prefixes into bogon filter list", num_prefix);
     pr_info("librefw: done inserting %d prefixes into bogon filter list\n", num_prefix);
 
     return 0;

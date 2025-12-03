@@ -19,7 +19,7 @@ enum lfw_nl_attrs {
     LFW_NLA_END,
 };
 
-#define LFW_NL_A_MAX (LFW_NLA_END - 1)
+#define LFW_NLA_MAX (LFW_NLA_END - 1)
 
 enum lfw_nl_cmds {
     LFW_NLX_UNSPEC,
@@ -29,7 +29,7 @@ enum lfw_nl_cmds {
     LFW_NLX_END,
 };
 
-#define LFW_NL_CMD_MAX (LFW_NLX_END - 1)
+#define LFW_NLX_MAX (LFW_NLX_END - 1)
 
 // taken from kernel levels
 #define LOGLEVEL_EMERG		0	/* system is unusable */
