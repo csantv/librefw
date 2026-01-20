@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# download from https://fastly.mirror.pkgbuild.com/images/
+# mount with
+#
+# mount -t 9p -o trans=virtio,version=9p2000.L dev /mnt/path
+
+
+IMAGE=Arch-Linux-x86_64-basic-20260115.482142.qcow2
+
+nohup qemu-system-x86_64 \
+    -m 4096 \
+    -enable-kvm \
+    -drive file="./scripts/$IMAGE",format=qcow2 \
+    -device virtio-vga-gl \
+    -display gtk,gl=on \
+    -nic user,model=virtio-net-pci \
+    -virtfs local,path="$PWD",security_model=mapped,mount_tag=dev,readonly=on,multidevs=remap \
+    &> /dev/null & disown

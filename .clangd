@@ -1,0 +1,5 @@
+If:
+  PathExclude: kernel/.*
+
+CompileFlags:
+  CompilationDatabase: "build"
