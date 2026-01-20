@@ -3,6 +3,10 @@
 #include "nl/log.hpp"
 
 #include <netlink/genl/ctrl.h>
+#include <netlink/genl/genl.h>
+
+#include <array>
+#include <iostream>
 
 namespace lfw
 {
@@ -24,13 +28,36 @@ LogListener::LogListener()
 
 void LogListener::wait_for_messages()
 {
-    while (1) {
+    int ret = nl_socket_modify_cb(sock.get(), NL_CB_VALID, NL_CB_CUSTOM, callback, this);
+    if (ret < 0) {
+        throw std::system_error(std::error_code(-ret, std::generic_category()), "could not modify callback");
     }
-    nl_recvmsgs_default(sock.get());
+
+    while (1) {
+        nl_recvmsgs_default(sock.get());
+    }
 }
 
-void LogListener::callback(struct nl_msg *msg, void *arg)
+auto LogListener::callback(struct nl_msg *msg, void *arg) -> int
 {
+    auto *hdr = static_cast<struct genlmsghdr *>(nlmsg_data(nlmsg_hdr(msg)));
+    std::array<struct nlattr *, LFW_NLA_MAX + 1> tb{};
+
+    int ret = nla_parse(tb.data(), LFW_NLA_MAX, genlmsg_attrdata(hdr, 0), genlmsg_attrlen(hdr, 0), nullptr);
+    if (ret) {
+        std::cerr << "unable to parse message: " << std::error_code(-ret, std::generic_category()).message()
+                  << std::endl;
+        return NL_SKIP;
+    }
+
+    if (!tb.at(LFW_NLA_LOG_MSG)) {
+        std::cerr << "msg attribute missing from message" << std::endl;
+        return NL_SKIP;
+    }
+
+    std::cout << nla_get_string(tb[LFW_NLA_LOG_MSG]) << std::endl;
+
+    return NL_OK;
 }
 
 } // namespace lfw

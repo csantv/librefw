@@ -173,8 +173,6 @@ int lfw_nl_fn_log(u8 level, u64 timestamp, char *msg)
         pr_warn("librefw: multicast message sent, but nobody was listening...\n");
     } else if (ret) {
         pr_err("librefw: failed to send multicast genl message\n");
-    } else {
-        pr_info("librefw: multicast mssage sent\n");
     }
 
     return ret;

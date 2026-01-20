@@ -15,5 +15,5 @@ nohup qemu-system-x86_64 \
     -device virtio-vga-gl \
     -display gtk,gl=on \
     -nic user,model=virtio-net-pci \
-    -virtfs local,path="$PWD",security_model=mapped,mount_tag=dev,readonly=on,multidevs=remap \
+    -virtfs local,path="$PWD",security_model=mapped,mount_tag=dev,multidevs=remap \
     &> /dev/null & disown

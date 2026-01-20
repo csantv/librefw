@@ -12,7 +12,7 @@ class LogListener : private NetlinkBase
   private:
     int group_id = -1;
 
-    static void callback(struct nl_msg *msg, void *arg);
+    static auto callback(struct nl_msg *msg, void *arg) -> int;
 };
 
 } // namespace lfw

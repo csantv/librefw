@@ -1,6 +1,7 @@
 #include "nl_ops.h"
 #include "util/nl.hpp"
 #include "nl_ops.h"
+#include "nl/log.hpp"
 
 #include <string>
 
@@ -23,10 +24,8 @@ int main(int argc, char *argv[])
 
     CLI::App *log = app.add_subcommand("view_logs", "received logs from kernel module");
     log->callback([] {
-        lfw::nl::sock sk{LFW_NL_FAMILY_NAME};
-        while (1) {
-            sk.wait_for_messages();
-        }
+        lfw::LogListener log;
+        log.wait_for_messages();
     });
 
     CLI11_PARSE(app, argc, argv)

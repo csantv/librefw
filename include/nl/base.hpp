@@ -14,7 +14,7 @@ namespace lfw
 class NetlinkBase
 {
   public:
-    NetlinkBase(const char *family_name);
+    NetlinkBase(const char *family_name, int bufsize = 4 * 1024 * 1024);
 
   protected:
     std::string family_name;

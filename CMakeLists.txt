@@ -23,6 +23,7 @@ target_sources(librefw PRIVATE
     src/nl/log.cpp
     src/nl/base.cpp
 )
+
 target_include_directories(librefw PRIVATE include/)
 target_link_libraries(librefw PRIVATE
     Threads::Threads
