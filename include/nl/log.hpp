@@ -1,18 +1,18 @@
+#pragma once
+
 #include "nl/base.hpp"
 
 namespace lfw
 {
 
-class LogListener : private NetlinkBase
+class LogListener final : public NetlinkMulticastBase
 {
   public:
     LogListener();
-    void wait_for_messages();
 
   private:
     int group_id = -1;
-
-    static auto callback(struct nl_msg *msg, void *arg) -> int;
+    auto on_message_received(struct nl_msg *msg) -> int override;
 };
 
 } // namespace lfw

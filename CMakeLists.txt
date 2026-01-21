@@ -16,6 +16,7 @@ find_package(Threads REQUIRED)
 find_package(CLI11 CONFIG REQUIRED)
 
 pkg_check_modules(NL REQUIRED IMPORTED_TARGET libnl-genl-3.0)
+target_compile_options(librefw PRIVATE $<$<CONFIG:Debug>:-Wall -Wextra -Wpedantic -Werror>)
 
 target_sources(librefw PRIVATE
     src/main.cpp
