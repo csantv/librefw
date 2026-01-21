@@ -1,6 +1,4 @@
-#include "nl_ops.h"
-#include "util/nl.hpp"
-#include "nl_ops.h"
+#include "nl/command.hpp"
 #include "nl/log.hpp"
 
 #include <string>
@@ -18,8 +16,8 @@ int main(int argc, char *argv[])
     std::string filename;
     bogon->add_option("-f,--filename", filename, "File containing bogon list")->required(true);
     bogon->callback([&] {
-        lfw::nl::sock sk(LFW_NL_FAMILY_NAME);
-        sk.send_bogon_list(filename);
+        lfw::CommandDispatcher cmd;
+        cmd.send_bogon_list(filename);
     });
 
     CLI::App *log = app.add_subcommand("view_logs", "received logs from kernel module");

@@ -14,7 +14,10 @@ NetlinkBase::NetlinkBase(const char *family_name, int bufsize)
         throw std::system_error(std::make_error_code(std::errc::not_enough_memory), "nl_socket_alloc");
     }
 
-    genl_connect(sock.get());
+    int ret = genl_connect(sock.get());
+    if (ret < 0) {
+        throw std::system_error(std::error_code(-ret, std::generic_category()), "could not connect netlink socket");
+    }
 
     family_id = genl_ctrl_resolve(sock.get(), family_name);
     if (family_id < 0) {
@@ -22,7 +25,7 @@ NetlinkBase::NetlinkBase(const char *family_name, int bufsize)
                                 "could not resolve netlink family");
     }
 
-    int ret = nl_socket_set_buffer_size(sock.get(), bufsize, bufsize);
+    ret = nl_socket_set_buffer_size(sock.get(), bufsize, bufsize);
     if (ret < 0) {
         throw std::system_error(std::error_code(-ret, std::generic_category()), "could not set buffer size");
     }

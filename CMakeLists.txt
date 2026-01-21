@@ -20,9 +20,9 @@ target_compile_options(librefw PRIVATE $<$<CONFIG:Debug>:-Wall -Wextra -Wpedanti
 
 target_sources(librefw PRIVATE
     src/main.cpp
-    src/util/nl.cpp
     src/nl/log.cpp
     src/nl/base.cpp
+    src/nl/command.cpp
 )
 
 target_include_directories(librefw PRIVATE include/)

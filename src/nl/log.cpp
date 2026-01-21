@@ -2,7 +2,6 @@
 
 #include "nl/log.hpp"
 
-#include <netlink/genl/ctrl.h>
 #include <netlink/genl/genl.h>
 
 #include <array>
