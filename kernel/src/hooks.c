@@ -1,12 +1,18 @@
 #include "hooks.h"
 #include "bogon.h"
 #include "hcf.h"
-#include "state.h"
 
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/ip.h>
 #include <linux/unaligned.h>
+
+struct lfw_net_state {
+    struct net_device *dev;
+    netdevice_tracker dev_tracker;
+};
+
+static struct lfw_net_state net;
 
 static struct nf_hook_ops lfw_ipv4_ops[2] = {
     {
@@ -26,18 +32,32 @@ static struct nf_hook_ops lfw_ipv4_ops[2] = {
 
 int lfw_register_hooks(void)
 {
-    lfw_ipv4_ops[0].dev = lfw_state_get_device();
-    pr_info("librefw: Registering Netfilter hook\n");
+    net.dev = netdev_get_by_name(&init_net, "eno1", &net.dev_tracker, GFP_KERNEL);
+    if (!net.dev) {
+        pr_err("librefw: could not get device eno1\n");
+        return -ENODEV;
+    }
+
+    lfw_ipv4_ops[0].dev = net.dev;
+    pr_info("librefw: Registering Netfilter hook on device eno1\n");
     int ret = nf_register_net_hooks(&init_net, lfw_ipv4_ops, 2);
     if (ret) {
         pr_err("librefw: Failed to register Netfilter hook - %d\n", ret);
+        netdev_put(net.dev, &net.dev_tracker);
+        net.dev = NULL;
+        return ret;
     }
-    return ret;
+
+    return 0;
 }
 
 void lfw_unregister_hooks(void)
 {
+    if (!net.dev) {
+        return;
+    }
     nf_unregister_net_hooks(&init_net, lfw_ipv4_ops, 2);
+    netdev_put(net.dev, &net.dev_tracker);
 }
 
 unsigned int lfw_filter_ipv4_hook_fn(void *priv, struct sk_buff *skb, const struct nf_hook_state *state)
