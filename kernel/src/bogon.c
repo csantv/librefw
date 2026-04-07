@@ -12,6 +12,7 @@ static DEFINE_SPINLOCK(lock);
 
 int lfw_init_bg_state(void)
 {
+    int ret;
     state = kzalloc(sizeof(struct lfw_bg_state), GFP_KERNEL);
     if (unlikely(state == NULL)) {
         return -ENOMEM;
@@ -20,19 +21,24 @@ int lfw_init_bg_state(void)
 
     st->mem = kmem_cache_create("lfw_bogon_cache", sizeof(struct lfw_bg_node), 0, SLAB_HWCACHE_ALIGN, NULL);
     if (st->mem == NULL) {
-        kfree(st);
-        return -ENOMEM;
+        ret = -ENOMEM;
+        goto err_free_state;
     }
 
     struct lfw_bg_tree *tree = kzalloc(sizeof(struct lfw_bg_tree), GFP_KERNEL);
     if (tree == NULL) {
-        kmem_cache_destroy(st->mem);
-        kfree(st);
-        return -ENOMEM;
+        ret = -ENOMEM;
+        goto err_kmem_free;
     }
-    rcu_assign_pointer(st->tree, tree);
 
+    rcu_assign_pointer(st->tree, tree);
     return 0;
+
+err_kmem_free:
+    kmem_cache_destroy(st->mem);
+err_free_state:
+    kfree(st);
+    return ret;
 }
 
 void lfw_free_bg_state(void)

@@ -1,8 +1,9 @@
 #include "state.h"
 #include "bogon.h"
-#include "nl.h"
 #include "hcf.h"
+#include "nl.h"
 
+#include <linux/netdevice.h>
 #include <linux/rwlock.h>
 #include <linux/spinlock.h>
 
@@ -11,26 +12,51 @@ static DEFINE_RWLOCK(lock);
 
 int lfw_init_state(void)
 {
+    int ret;
     state = kzalloc(sizeof(struct lfw_state), GFP_KERNEL);
-    if (state == NULL) {
+    if (!state) {
         return -ENOMEM;
+    }
+
+    state->dev = netdev_get_by_name(&init_net, "eno1", &state->dev_tracker, GFP_KERNEL);
+    if (!state->dev) {
+        ret = -ENODEV;
+        pr_err("librefw: could not find device eno1\n");
+        goto err_free_state;
     }
     state->under_attack = false;
 
-    int ret = lfw_init_bg_state();
+    ret = lfw_nl_init();
     if (ret < 0) {
-        pr_err("librefw: could not initialize bogon state %d\n", ret);
-        return ret;
+        goto err_put_dev;
     }
 
-    ret = lfw_nl_init();
-    lfw_init_hc_state();
+    ret = lfw_init_bg_state();
+    if (ret < 0) {
+        pr_err("librefw: could not initialize bogon state %d\n", ret);
+        goto err_nl_destroy;
+    }
 
+    ret = lfw_init_hc_state();
+    if (ret < 0) {
+        goto err_free_bg;
+    }
+    return 0;
+
+err_free_bg:
+    lfw_free_bg_state();
+err_nl_destroy:
+    lfw_nl_destroy();
+err_put_dev:
+    netdev_put(state->dev, &state->dev_tracker);
+err_free_state:
+    kfree(state);
     return ret;
 }
 
 void lfw_free_state(void)
 {
+    netdev_put(state->dev, &state->dev_tracker);
     lfw_nl_destroy();
     lfw_free_bg_state();
     lfw_free_hc_state();
@@ -52,3 +78,10 @@ void lfw_state_set_under_attack(bool new_value)
     write_unlock(&lock);
 }
 
+struct net_device* lfw_state_get_device(void)
+{
+    read_lock(&lock);
+    struct net_device*dev = state->dev;
+    read_unlock(&lock);
+    return dev;
+}

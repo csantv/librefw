@@ -17,6 +17,7 @@ static int __init lfw_mod_init(void)
 
     ret = lfw_register_hooks();
     if (ret < 0) {
+        lfw_free_state();
         return ret;
     }
 

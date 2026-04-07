@@ -1,6 +1,7 @@
 #include "hooks.h"
 #include "bogon.h"
 #include "hcf.h"
+#include "state.h"
 
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
@@ -10,9 +11,10 @@
 static struct nf_hook_ops lfw_ipv4_ops[2] = {
     {
         .hook = lfw_filter_ipv4_hook_fn,
-        .pf = NFPROTO_IPV4,
-        .hooknum = NF_INET_PRE_ROUTING,
-        .priority = NF_IP_PRI_FILTER
+        .pf = NFPROTO_NETDEV,
+        .hooknum = NF_NETDEV_INGRESS,
+        .priority = NF_IP_PRI_FIRST,
+        .dev = NULL
     },
     {
         .hook = lfw_hc_learn_ipv4_hook_fn,
@@ -24,6 +26,7 @@ static struct nf_hook_ops lfw_ipv4_ops[2] = {
 
 int lfw_register_hooks(void)
 {
+    lfw_ipv4_ops[0].dev = lfw_state_get_device();
     pr_info("librefw: Registering Netfilter hook\n");
     int ret = nf_register_net_hooks(&init_net, lfw_ipv4_ops, 2);
     if (ret) {
@@ -39,6 +42,7 @@ void lfw_unregister_hooks(void)
 
 unsigned int lfw_filter_ipv4_hook_fn(void *priv, struct sk_buff *skb, const struct nf_hook_state *state)
 {
+    /*
     struct iphdr *iph = ip_hdr(skb);
     if (unlikely(!iph)) {
         return NF_ACCEPT;
@@ -51,7 +55,7 @@ unsigned int lfw_filter_ipv4_hook_fn(void *priv, struct sk_buff *skb, const stru
     if (lfw_lookup_bg_tree(get_unaligned_be32(&iph->saddr)) > 0) {
         pr_info_ratelimited("librefw: dropping packet from ip %pI4\n", &iph->saddr);
         return NF_DROP;
-    }
+    }*/
 
     // TODO: add hc filter function
 
