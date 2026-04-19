@@ -2,9 +2,11 @@
 #include "bogon.h"
 #include "hcf.h"
 
+#include <linux/if_ether.h>
+#include <linux/ip.h>
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
-#include <linux/ip.h>
+#include <linux/tcp.h>
 #include <linux/unaligned.h>
 
 struct lfw_net_state {
@@ -15,20 +17,12 @@ struct lfw_net_state {
 static struct lfw_net_state net;
 
 static struct nf_hook_ops lfw_ipv4_ops[2] = {
-    {
-        .hook = lfw_filter_ipv4_hook_fn,
-        .pf = NFPROTO_NETDEV,
-        .hooknum = NF_NETDEV_INGRESS,
-        .priority = NF_IP_PRI_FIRST,
-        .dev = NULL
-    },
-    {
-        .hook = lfw_hc_learn_ipv4_hook_fn,
-        .pf = NFPROTO_IPV4,
-        .hooknum = NF_INET_LOCAL_IN,
-        .priority = NF_IP_PRI_LAST
-    }
-};
+    {.hook = lfw_filter_ipv4_hook_fn,
+     .pf = NFPROTO_NETDEV,
+     .hooknum = NF_NETDEV_INGRESS,
+     .priority = NF_IP_PRI_FIRST,
+     .dev = NULL},
+    {.hook = lfw_hc_learn_ipv4_hook_fn, .pf = NFPROTO_IPV4, .hooknum = NF_INET_LOCAL_IN, .priority = NF_IP_PRI_LAST}};
 
 int lfw_register_hooks(void)
 {
@@ -62,23 +56,27 @@ void lfw_unregister_hooks(void)
 
 unsigned int lfw_filter_ipv4_hook_fn(void *priv, struct sk_buff *skb, const struct nf_hook_state *state)
 {
-    /*
-    struct iphdr *iph = ip_hdr(skb);
-    if (unlikely(!iph)) {
+    struct ethhdr *eth = eth_hdr(skb);
+    struct iphdr _iph, *iph;
+
+    if (unlikely(!eth || ntohs(eth->h_proto) != ETH_P_IP)) {
         return NF_ACCEPT;
     }
 
-    if (iph->protocol != IPPROTO_TCP) {
+    iph = skb_header_pointer(skb, skb_network_offset(skb), sizeof(_iph), &_iph);
+    if (!iph || iph->protocol != IPPROTO_TCP) {
+        pr_info_ratelimited("librefw: not a TCP packet\n");
         return NF_ACCEPT;
     }
 
     if (lfw_lookup_bg_tree(get_unaligned_be32(&iph->saddr)) > 0) {
         pr_info_ratelimited("librefw: dropping packet from ip %pI4\n", &iph->saddr);
         return NF_DROP;
-    }*/
+    }
+
+    //pr_info_ratelimited("librefw: received package from ip %pI4\n", &iph->saddr);
 
     // TODO: add hc filter function
-
     return NF_ACCEPT;
 }
 
@@ -100,4 +98,3 @@ unsigned int lfw_hc_learn_ipv4_hook_fn(void *priv, struct sk_buff *skb, const st
 
     return NF_ACCEPT;
 }
-
