@@ -13,6 +13,7 @@ class CommandDispatcher : public NetlinkBase
     CommandDispatcher();
 
     void send_bogon_list(std::string filename);
+    void set_under_attack(bool under_attack);
 };
 
 } // namespace lfw

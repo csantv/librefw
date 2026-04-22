@@ -24,14 +24,7 @@ void CommandDispatcher::send_bogon_list(std::string filename)
         return;
     }
 
-    c_unique_ptr<struct nl_msg, nlmsg_free> msg{nlmsg_alloc()};
-
-    void *hdr =
-        genlmsg_put(msg.get(), NL_AUTO_PORT, NL_AUTO_SEQ, family_id, 0, 0, LFW_NLX_BOGON_SET, LFW_NL_FAMILY_VER);
-    if (!hdr) {
-        std::cout << "genlmsg_put failed" << std::endl;
-        return;
-    }
+    auto msg = make_message(LFW_NLX_SET_BOGON);
 
     std::string line;
     unsigned int num_lines = 0;
@@ -62,6 +55,27 @@ void CommandDispatcher::send_bogon_list(std::string filename)
         std::cout << "nl_send_auto failed - " << ret << std::endl;
     } else {
         std::cout << "sent bogon list - " << ret << std::endl;
+    }
+}
+
+void CommandDispatcher::set_under_attack(bool under_attack)
+{
+    auto msg = make_message(LFW_NLX_SET_UNDER_ATTACK);
+
+    std::cout << under_attack << std::endl;
+
+    if (under_attack) {
+        if (nla_put_flag(msg.get(), LFW_NLA_UNDER_ATTACK) < 0) {
+            std::cerr << "failed to add under attack flag\n";
+            return;
+        }
+    }
+
+    int ret = nl_send_auto(sock.get(), msg.get());
+    if (ret < 0) {
+        std::cout << "nl_send_auto failed - " << ret << std::endl;
+    } else {
+        std::cout << "set under_attack " << ret << std::endl;
     }
 }
 

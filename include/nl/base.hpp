@@ -3,11 +3,14 @@
 #include "util/ptr.hpp"
 
 #include <netlink/socket.h>
+#include <netlink/msg.h>
 
 #include <string>
 
 namespace lfw
 {
+
+using nl_msg_ptr = c_unique_ptr<struct nl_msg, nlmsg_free>;
 
 class NetlinkBase
 {
@@ -19,6 +22,8 @@ class NetlinkBase
     std::string family_name;
     c_unique_ptr<struct nl_sock, nl_socket_free> sock;
     int family_id = -1;
+
+    auto make_message(int netlink_function) -> nl_msg_ptr;
 };
 
 class NetlinkMulticastBase : public NetlinkBase

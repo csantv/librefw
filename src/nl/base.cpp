@@ -1,4 +1,5 @@
 #include "nl/base.hpp"
+#include "nl_ops.h"
 
 #include <netlink/genl/ctrl.h>
 #include <netlink/genl/genl.h>
@@ -29,6 +30,18 @@ NetlinkBase::NetlinkBase(const char *family_name, int bufsize)
     if (ret < 0) {
         throw std::system_error(std::error_code(-ret, std::generic_category()), "could not set buffer size");
     }
+}
+
+auto NetlinkBase::make_message(int netlink_function) -> nl_msg_ptr
+{
+    c_unique_ptr<struct nl_msg, nlmsg_free> msg{nlmsg_alloc()};
+
+    void *hdr = genlmsg_put(msg.get(), NL_AUTO_PORT, NL_AUTO_SEQ, family_id, 0, 0, netlink_function, LFW_NL_FAMILY_VER);
+    if (!hdr) {
+        throw std::system_error(std::make_error_code(std::errc::not_enough_memory), "genlmsg_put");
+    }
+
+    return msg;
 }
 
 NetlinkMulticastBase::NetlinkMulticastBase(const char *family_name, const char *group_name, int bufsize)

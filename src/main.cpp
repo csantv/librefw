@@ -26,6 +26,14 @@ int main(int argc, char *argv[])
         log.wait_for_messages();
     });
 
+    bool under_attack = false;
+    CLI::App *under_attack_cmd = app.add_subcommand("under_attack", "enable/disable hop count filtering");
+    under_attack_cmd->add_flag("--set", under_attack, "enable hop count filtering");
+    under_attack_cmd->callback([&under_attack] {
+        lfw::CommandDispatcher cmd;
+        cmd.set_under_attack(under_attack);
+    });
+
     CLI11_PARSE(app, argc, argv)
 
     return 0;
