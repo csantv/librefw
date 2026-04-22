@@ -193,5 +193,12 @@ err:
 int lfw_set_under_attack(struct sk_buff *skb, struct genl_info *info)
 {
     bool under_attack = nla_get_flag(info->attrs[LFW_NLA_UNDER_ATTACK]) == 1 ? true : false;
+
+    if (under_attack) {
+        pr_info("librefw: setting under attack\n");
+    } else {
+        pr_info("librefw: unsetting under attack\n");
+    }
+
     return lfw_state_set_under_attack(under_attack);
 }
