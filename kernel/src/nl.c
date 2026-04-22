@@ -1,6 +1,7 @@
 #include "nl.h"
 #include "nl_ops.h"
 #include "bogon.h"
+#include "state.h"
 
 #include <net/genetlink.h>
 #include <linux/vmalloc.h>
@@ -15,6 +16,8 @@ static struct nla_policy lfw_pol[] = {
     [LFW_NLA_NUM_IP_PREFIX] = { .type = NLA_U32 },
     [LFW_NLA_IP_PREFIX] = NLA_POLICY_NESTED(lfw_ip_prefix_pol),
 
+    [LFW_NLA_UNDER_ATTACK] = { .type = NLA_FLAG },
+
     [LFW_NLA_LOG_TS] = { .type = NLA_U64 },
     [LFW_NLA_LOG_LVL] = { .type = NLA_U8 },
     [LFW_NLA_LOG_MSG] = { .type = NLA_NUL_STRING }
@@ -22,8 +25,12 @@ static struct nla_policy lfw_pol[] = {
 
 static struct genl_ops lfw_nl_ops[] = {
     {
-        .cmd = LFW_NLX_BOGON_SET,
+        .cmd = LFW_NLX_SET_BOGON,
         .doit = lfw_bogon_set
+    },
+    {
+        .cmd = LFW_NLX_SET_UNDER_ATTACK,
+        .doit = lfw_set_under_attack
     }
 };
 
@@ -181,4 +188,10 @@ err:
     genlmsg_cancel(skb, hdr);
     nlmsg_free(skb);
     return ret;
+}
+
+int lfw_set_under_attack(struct sk_buff *skb, struct genl_info *info)
+{
+    bool under_attack = nla_get_flag(info->attrs[LFW_NLA_UNDER_ATTACK]) == 1 ? true : false;
+    return lfw_state_set_under_attack(under_attack);
 }

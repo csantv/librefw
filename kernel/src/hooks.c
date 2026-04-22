@@ -1,6 +1,7 @@
 #include "hooks.h"
 #include "bogon.h"
 #include "hcf.h"
+#include "state.h"
 
 #include <linux/if_ether.h>
 #include <linux/ip.h>
@@ -65,18 +66,20 @@ unsigned int lfw_filter_ipv4_hook_fn(void *priv, struct sk_buff *skb, const stru
 
     iph = skb_header_pointer(skb, skb_network_offset(skb), sizeof(_iph), &_iph);
     if (!iph || iph->protocol != IPPROTO_TCP) {
-        pr_info_ratelimited("librefw: not a TCP packet\n");
         return NF_ACCEPT;
     }
 
-    if (lfw_lookup_bg_tree(get_unaligned_be32(&iph->saddr)) > 0) {
+    __be32 saddr = get_unaligned_be32(&iph->saddr);
+    if (lfw_lookup_bg_tree(saddr) > 0) {
         pr_info_ratelimited("librefw: dropping packet from ip %pI4\n", &iph->saddr);
         return NF_DROP;
     }
 
-    //pr_info_ratelimited("librefw: received package from ip %pI4\n", &iph->saddr);
+    if (lfw_state_is_under_attack() && lfw_lookup_hc_tree(saddr, iph->ttl) == 0) {
+        pr_info_ratelimited("librefw: dropping packet from ip %pI4\n", &iph->saddr);
+        return NF_DROP;
+    }
 
-    // TODO: add hc filter function
     return NF_ACCEPT;
 }
 
@@ -88,6 +91,11 @@ unsigned int lfw_hc_learn_ipv4_hook_fn(void *priv, struct sk_buff *skb, const st
     }
 
     if (iph->protocol != IPPROTO_TCP && iph->protocol != IPPROTO_UDP) {
+        return NF_ACCEPT;
+    }
+
+    // stop learning if under attack
+    if (lfw_state_is_under_attack()) {
         return NF_ACCEPT;
     }
 

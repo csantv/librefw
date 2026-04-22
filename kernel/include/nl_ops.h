@@ -12,6 +12,8 @@ enum lfw_nl_attrs {
     LFW_NLA_N_IP_ADDR,
     LFW_NLA_N_IP_PREFIX_LEN,
 
+    LFW_NLA_UNDER_ATTACK,
+
     LFW_NLA_LOG_TS,
     LFW_NLA_LOG_LVL,
     LFW_NLA_LOG_MSG,
@@ -23,8 +25,8 @@ enum lfw_nl_attrs {
 
 enum lfw_nl_cmds {
     LFW_NLX_UNSPEC,
-    LFW_NLX_ECHO,
-    LFW_NLX_BOGON_SET,
+    LFW_NLX_SET_BOGON,
+    LFW_NLX_SET_UNDER_ATTACK,
     LFW_NLX_LOG,
     LFW_NLX_END,
 };

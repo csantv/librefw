@@ -31,13 +31,15 @@ int lfw_init_bg_state(void)
         goto err_kmem_free;
     }
 
-    rcu_assign_pointer(st->tree, tree);
+    rcu_assign_pointer(st->tree, tree); // NOLINT
     return 0;
 
 err_kmem_free:
     kmem_cache_destroy(st->mem);
+    st->mem = NULL;
 err_free_state:
     kfree(st);
+    state = NULL;
     return ret;
 }
 
@@ -128,7 +130,7 @@ void lfw_load_bg_tree(struct lfw_ip_prefix *prefixes, u32 len)
     pr_info("librefw: replacing old tree with new tree\n");
     spin_lock(&lock);
     struct lfw_bg_tree *old_tree = rcu_dereference_protected(state->tree, lockdep_is_held(&lock));
-    rcu_assign_pointer(state->tree, tree);
+    rcu_assign_pointer(state->tree, tree); // NOLINT
     spin_unlock(&lock);
 
     call_rcu(&old_tree->rcu, lfw_free_bg_tree);
@@ -137,7 +139,7 @@ void lfw_load_bg_tree(struct lfw_ip_prefix *prefixes, u32 len)
 int lfw_lookup_bg_tree(u32 ip)
 {
     rcu_read_lock();
-    struct lfw_bg_tree *tree = rcu_dereference(state->tree);
+    struct lfw_bg_tree *tree = rcu_dereference(state->tree); // NOLINT
     int result = 0;
 
     struct lfw_bg_node *runner = tree->root;
