@@ -151,13 +151,6 @@ void lfw_do_work(struct work_struct *work)
         nodes_created++;
     }
 
-    // skip reassign if metadata is the same and no new nodes were created
-    if (nodes_created == 0 && new_runner->ttl == task->ttl) {
-        spin_unlock(&lock);
-        free_hcf_node(new_root);
-        goto end;
-    }
-
     // asign metadata
     new_runner->ttl = task->ttl;
     new_runner->hc = 64 - task->ttl;
@@ -172,7 +165,6 @@ void lfw_do_work(struct work_struct *work)
         call_rcu(&nodes_to_free[i]->rcu, free_hcf_node_rcu);
     }
 
-end:
     kfree(task);
 }
 
