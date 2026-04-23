@@ -110,7 +110,7 @@ struct hcf_node *clone_hcf_node(struct hcf_node *old)
 void lfw_do_work(struct work_struct *work)
 {
     struct hcf_node *nodes_to_free[33];
-    int free_count = 0;
+    int free_count = 0, nodes_created = 0;
 
     struct hcf_node *new_root, *runner, *new_runner;
     struct lfw_hc_add_node_task *task = container_of(work, struct lfw_hc_add_node_task, real_work);
@@ -148,6 +148,14 @@ void lfw_do_work(struct work_struct *work)
         int bit = (task->source_ip >> remaining_bits) & 1;
         new_runner->child[bit] = create_hcf_node();
         new_runner = new_runner->child[bit];
+        nodes_created++;
+    }
+
+    // skip reassign if metadata is the same and no new nodes were created
+    if (nodes_created == 0 && new_runner->ttl == task->ttl) {
+        spin_unlock(&lock);
+        free_hcf_node(new_root);
+        goto end;
     }
 
     // asign metadata
@@ -157,11 +165,14 @@ void lfw_do_work(struct work_struct *work)
     rcu_assign_pointer(state->tree, new_root);
 
     spin_unlock(&lock);
+    pr_info_ratelimited("librefw: [hcf] adding new node for ip %pI4 with ttl %d, %d nodes created\n", &task->source_ip,
+                        task->ttl, nodes_created);
 
     for (int i = 0; i < free_count; i++) {
         call_rcu(&nodes_to_free[i]->rcu, free_hcf_node_rcu);
     }
 
+end:
     kfree(task);
 }
 
