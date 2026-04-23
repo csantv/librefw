@@ -1,13 +1,10 @@
 #include "hcf.h"
-#include "utils.h"
 
-// #include <linux/rwlock.h>
 #include <linux/spinlock.h>
 
 // TODO: maybe use hrtimer
 
 static struct lfw_hc_state *state = NULL;
-// static DEFINE_RWLOCK(lock);
 static DEFINE_SPINLOCK(lock);
 
 int lfw_init_hc_state(void)
@@ -54,10 +51,37 @@ void lfw_free_hc_state(void)
     if (state->workqueue) {
         destroy_workqueue(state->workqueue);
     }
-    // TODO: add rcu free
-    // lfw_free_hc_node(state->tree);
+
+    free_hcf_tree();
     kmem_cache_destroy(state->mem);
     kfree(state);
+}
+
+void free_hcf_tree(void)
+{
+    spin_lock(&lock);
+    struct hcf_node *old_root = rcu_dereference_protected(state->tree, lockdep_is_held(&lock));
+    rcu_assign_pointer(state->tree, NULL);
+    spin_unlock(&lock);
+
+    if (!old_root) {
+        return;
+    }
+
+    synchronize_rcu();
+    free_hcf_node(old_root);
+}
+
+void free_hcf_node(struct hcf_node *node)
+{
+    if (!node) {
+        return;
+    }
+
+    free_hcf_node(node->child[0]);
+    free_hcf_node(node->child[1]);
+
+    kmem_cache_free(state->mem, node);
 }
 
 struct hcf_node *create_hcf_node(void)
@@ -83,33 +107,6 @@ struct hcf_node *clone_hcf_node(struct hcf_node *old)
     return new_node;
 }
 
-/*
-struct lfw_hc_node* lfw_create_hc_node(void)
-{
-    struct lfw_hc_node *node = kmem_cache_zalloc(state->mem, GFP_KERNEL);
-    if (node == NULL) {
-        pr_err("librefw: could not allocate memory for hc node\n");
-        return NULL;
-    }
-    node->child[0] = NULL;
-    node->child[1] = NULL;
-    node->hc = 0;
-    node->ttl = 0;
-    return node;
-}*/
-
-void lfw_free_hc_node(struct lfw_hc_node *node)
-{
-    if (node == NULL) {
-        return;
-    }
-
-    lfw_free_hc_node(node->child[0]);
-    lfw_free_hc_node(node->child[1]);
-
-    kmem_cache_free(state->mem, node);
-}
-
 void lfw_do_work(struct work_struct *work)
 {
     struct hcf_node *nodes_to_free[33];
@@ -121,6 +118,11 @@ void lfw_do_work(struct work_struct *work)
 
     // clone the whole branch until you get to a non rcu portion, then create remaining branch
     runner = rcu_dereference_protected(state->tree, lockdep_is_held(&lock));
+    if (!runner) {
+        spin_unlock(&lock);
+        return;
+    }
+
     new_root = clone_hcf_node(runner);
     new_runner = new_root;
     nodes_to_free[free_count++] = runner;
@@ -142,7 +144,7 @@ void lfw_do_work(struct work_struct *work)
     }
 
     // create remaining leaf, no rcu here
-    for (;remaining_bits >= 8; remaining_bits--) {
+    for (; remaining_bits >= 8; remaining_bits--) {
         int bit = (task->source_ip >> remaining_bits) & 1;
         new_runner->child[bit] = create_hcf_node();
         new_runner = new_runner->child[bit];
@@ -169,34 +171,32 @@ void free_hcf_node_rcu(struct rcu_head *rp)
     kmem_cache_free(state->mem, node);
 }
 
-
 int lfw_lookup_hc_tree(u32 source_ip, u8 ttl)
 {
-    int result = 0;
-    /*
-    read_lock(&lock);
-    struct lfw_hc_node *runner = state->tree;
-    if (runner == NULL) {
-        result = -1;
+    int result = -1;
+    rcu_read_lock();
+    struct hcf_node *runner = rcu_dereference(state->tree);
+    if (!runner) {
         goto end;
     }
 
-    for (int i = 0; i < 24; i++) {
-        int bit = in4_get_bit(source_ip, i);
-        if (runner->child[bit] == NULL) {
-            result = -1;
+    for (int i = 31; i >= 8; i--) {
+        int bit = (source_ip >> i) & 1;
+        runner = rcu_dereference(runner->child[bit]);
+        if (!runner) {
             goto end;
         }
-        runner = runner->child[bit];
     }
 
     int hop_count = 64 - ttl;
-    if (runner != NULL && runner->hc == hop_count) {
+    if (READ_ONCE(runner->hc) == hop_count) {
         result = 1;
+    } else {
+        result = 0;
     }
 
 end:
-    read_unlock(&lock);*/
+    rcu_read_unlock();
     return result;
 }
 

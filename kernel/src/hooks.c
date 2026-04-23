@@ -75,7 +75,7 @@ unsigned int lfw_filter_ipv4_hook_fn(void *priv, struct sk_buff *skb, const stru
         return NF_DROP;
     }
 
-    if (lfw_state_is_under_attack() && lfw_lookup_hc_tree(saddr, iph->ttl) == 0) {
+    if (lfw_state_is_under_attack() && lfw_lookup_hc_tree(saddr, iph->ttl) < 1) {
         pr_info_ratelimited("librefw: dropping packet from ip %pI4\n", &iph->saddr);
         return NF_DROP;
     }

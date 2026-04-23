@@ -1,5 +1,9 @@
 CompileFlags:
   Add: [-Wno-unknown-warning-option]
   Remove: [-m*, -f*]
+Diagnostics:
+  ClangTidy:
+    Remove:
+      - bugprone-sizeof-expression
 #Index:
 #  StandardLibrary: Yes
