@@ -17,12 +17,6 @@ struct hcf_node *create_hcf_node(void);
 struct hcf_node *clone_hcf_node(struct hcf_node *old);
 void free_hcf_node_rcu(struct rcu_head *rp);
 
-struct lfw_hc_node {
-    struct lfw_hc_node *child[2];
-    u8 hc;
-    u8 ttl;
-};
-
 struct lfw_hc_add_node_task {
     struct work_struct real_work;
     u32 source_ip;

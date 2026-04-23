@@ -16,7 +16,7 @@ int lfw_init_hc_state(void)
     }
     struct lfw_hc_state *st = state;
 
-    st->mem = kmem_cache_create("lfw_hcf_cache", sizeof(struct lfw_hc_node), 0, SLAB_HWCACHE_ALIGN, NULL);
+    st->mem = kmem_cache_create("lfw_hcf_cache", sizeof(struct hcf_node), 0, SLAB_HWCACHE_ALIGN, NULL);
     if (st->mem == NULL) {
         goto err_free_state;
     }
