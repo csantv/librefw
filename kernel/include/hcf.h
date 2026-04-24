@@ -26,7 +26,6 @@ struct lfw_hc_add_node_task {
 struct lfw_hc_state {
     struct workqueue_struct *workqueue;
     struct kmem_cache *mem;
-    // struct lfw_hc_node *tree;
     struct hcf_node __rcu *tree;
 };
 
@@ -37,3 +36,5 @@ void lfw_do_work(struct work_struct *work);
 int lfw_lookup_hc_tree(u32 source_ip, u8 tll);
 
 int lfw_add_hc_node(u32 source_ip, u8 ttl);
+
+int hcf_get_initial_ttl(u8 ttl);

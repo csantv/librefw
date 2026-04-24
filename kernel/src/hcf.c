@@ -1,5 +1,6 @@
 #include "hcf.h"
 
+#include <linux/math.h>
 #include <linux/spinlock.h>
 
 // TODO: maybe use hrtimer
@@ -153,13 +154,16 @@ void lfw_do_work(struct work_struct *work)
 
     // asign metadata
     new_runner->ttl = task->ttl;
-    new_runner->hc = 64 - task->ttl;
+    new_runner->hc = hcf_get_initial_ttl(task->ttl) - task->ttl;
 
     rcu_assign_pointer(state->tree, new_root);
 
     spin_unlock(&lock);
-    pr_info_ratelimited("librefw: [hcf] adding new node for ip %pI4 with ttl %d, %d nodes created\n", &task->source_ip,
-                        task->ttl, nodes_created);
+    if (nodes_created > 0) {
+        u32 net_ip = htonl(task->source_ip);
+        pr_info_ratelimited("librefw: [hcf] adding new node for ip %pI4 with hc %d, %d nodes created\n", &net_ip,
+                            new_runner->hc, nodes_created);
+    }
 
     for (int i = 0; i < free_count; i++) {
         call_rcu(&nodes_to_free[i]->rcu, free_hcf_node_rcu);
@@ -172,6 +176,15 @@ void free_hcf_node_rcu(struct rcu_head *rp)
 {
     struct hcf_node *node = container_of(rp, struct hcf_node, rcu);
     kmem_cache_free(state->mem, node);
+}
+
+int hcf_get_initial_ttl(u8 ttl)
+{
+    if (ttl <= 64)
+        return 64;
+    if (ttl <= 128)
+        return 128;
+    return 255;
 }
 
 int lfw_lookup_hc_tree(u32 source_ip, u8 ttl)
@@ -191,8 +204,11 @@ int lfw_lookup_hc_tree(u32 source_ip, u8 ttl)
         }
     }
 
-    int hop_count = 64 - ttl;
-    if (READ_ONCE(runner->hc) == hop_count) {
+    u8 initial_ttl = hcf_get_initial_ttl(ttl);
+    int current_hc = initial_ttl - ttl;
+    int stored_hc = (int)READ_ONCE(runner->hc);
+
+    if (abs(current_hc - stored_hc) <= 2) {
         result = 1;
     } else {
         result = 0;
