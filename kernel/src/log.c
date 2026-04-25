@@ -32,7 +32,7 @@ int lfw_log(u8 level, const char *fmt, ...)
     }
 
     struct log_ctx ctx = {.level = level, .timestamp = ts.tv_sec, .msg = msgbuf};
-    int ret = lfw_make_multicast_msg(LFW_NL_CMD_LOG, &ctx, lfw_build_log_msg);
+    int ret = lfw_make_multicast_msg(LFW_NL_GROUP_LOG, LFW_NL_CMD_LOG, &ctx, lfw_build_log_msg);
 
     va_end(args);
     kfree(msgbuf);

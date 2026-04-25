@@ -2,7 +2,6 @@
 
 #define LFW_NL_FAMILY_NAME "librefw"
 #define LFW_NL_FAMILY_VER 1
-#define LFW_NL_GROUP_NAME "librefw"
 
 enum lfw_nl_attrs {
     LFW_NLA_UNSPEC = 0,
@@ -35,5 +34,13 @@ enum lfw_nl_cmds {
 
     LFW_NL_CMD_LOG,
     LFW_NL_CMD_HCF,
-    LFW_NL_CMD_FILTER,
 };
+
+enum lfw_nl_groups {
+    LFW_NL_GROUP_LOG,
+    LFW_NL_GROUP_HCF,
+
+    __LFW_NL_GROUP_MAX,
+};
+
+#define LFW_NL_GROUP_MAX (__LFW_NL_GROUP_MAX - 1)

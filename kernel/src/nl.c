@@ -38,7 +38,8 @@ static struct genl_ops lfw_nl_ops[] = {
 };
 
 static struct genl_multicast_group lfw_nl_mcgrps[] = {
-    { .name = LFW_NL_GROUP_NAME },
+    [LFW_NL_GROUP_LOG] = { .name = "log" },
+    [LFW_NL_GROUP_HCF] = { .name = "hcf" },
 };
 
 static struct genl_family lfw_nl_family = {
@@ -48,7 +49,7 @@ static struct genl_family lfw_nl_family = {
     .ops = lfw_nl_ops,
     .n_ops = ARRAY_SIZE(lfw_nl_ops),
     .mcgrps = lfw_nl_mcgrps,
-    .n_mcgrps = ARRAY_SIZE(lfw_nl_mcgrps),
+    .n_mcgrps = LFW_NL_GROUP_MAX,
     .policy = lfw_pol
 };
 // clang-format on
@@ -72,7 +73,7 @@ void lfw_nl_destroy(void)
     pr_info("librefw: Removing nl server\n");
 }
 
-int lfw_make_multicast_msg(u8 cmd, void *data, lfw_nl_group_cb callback)
+int lfw_make_multicast_msg(u8 group, u8 cmd, void *data, lfw_nl_group_cb callback)
 {
     struct sk_buff *skb = genlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
     if (!skb) {
@@ -93,7 +94,7 @@ int lfw_make_multicast_msg(u8 cmd, void *data, lfw_nl_group_cb callback)
 
     genlmsg_end(skb, hdr);
 
-    ret = genlmsg_multicast(&lfw_nl_family, skb, 0, 0, GFP_KERNEL);
+    ret = genlmsg_multicast(&lfw_nl_family, skb, 0, group, GFP_KERNEL);
     if (ret == -ESRCH) {
         return 0;
     }
