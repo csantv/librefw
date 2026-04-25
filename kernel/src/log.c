@@ -15,7 +15,7 @@ struct log_ctx {
 int lfw_log(u8 level, const char *fmt, ...)
 {
     struct timespec64 ts;
-    ktime_get_ts64(&ts);
+    ktime_get_coarse_real_ts64(&ts);
 
     va_list args;
     va_start(args, fmt);
