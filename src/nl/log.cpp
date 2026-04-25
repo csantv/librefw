@@ -21,7 +21,11 @@ auto LogListener::on_message_received(nlattr_vec& tb) -> int
         return NL_SKIP;
     }
 
-    std::cout << nla_get_string(tb[LFW_NLA_LOG_MSG]) << std::endl;
+    std::string message {nla_get_string(tb[LFW_NLA_LOG_MSG])};
+    uint64_t timestamp = nla_get_u64(tb[LFW_NLA_LOG_TS]);
+    uint8_t level = nla_get_u8(tb[LFW_NLA_LOG_LVL]);
+
+    std::cout << level << " " << timestamp << " " << message;
 
     return NL_OK;
 }
