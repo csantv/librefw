@@ -1,5 +1,6 @@
 #include "nl/command.hpp"
 #include "nl/log.hpp"
+#include "nl/hcf.hpp"
 
 #include <string>
 
@@ -32,6 +33,12 @@ int main(int argc, char *argv[])
     under_attack_cmd->callback([&under_attack] {
         lfw::CommandDispatcher cmd;
         cmd.set_under_attack(under_attack);
+    });
+
+    CLI::App *hcf_cmd = app.add_subcommand("view_hcf", "receive logs from hcf in kernel module");
+    hcf_cmd->callback([] {
+        lfw::HcfListener hcf;
+        hcf.wait_for_messages();
     });
 
     CLI11_PARSE(app, argc, argv)
