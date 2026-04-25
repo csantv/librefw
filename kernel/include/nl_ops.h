@@ -1,11 +1,10 @@
 #pragma once
 
 #define LFW_NL_FAMILY_NAME "librefw"
-#define LFW_NL_MC_GRP_NAME "lfwmc"
 #define LFW_NL_FAMILY_VER 1
 
 enum lfw_nl_attrs {
-    LFW_NLA_UNSPEC,
+    LFW_NLA_UNSPEC = 0,
 
     LFW_NLA_NUM_IP_PREFIX,
     LFW_NLA_IP_PREFIX,
@@ -18,27 +17,31 @@ enum lfw_nl_attrs {
     LFW_NLA_LOG_LVL,
     LFW_NLA_LOG_MSG,
 
-    LFW_NLA_END,
+    __LFW_NLA_MAX,
 };
 
-#define LFW_NLA_MAX (LFW_NLA_END - 1)
+#define LFW_NLA_MAX (__LFW_NLA_MAX - 1)
 
 enum lfw_nl_cmds {
-    LFW_NLX_UNSPEC,
-    LFW_NLX_SET_BOGON,
-    LFW_NLX_SET_UNDER_ATTACK,
-    LFW_NLX_LOG,
-    LFW_NLX_END,
+    LFW_NL_CMD_UNSPEC = 0,
+
+    LFW_NL_CMD_SET_BOGON,
+    LFW_NL_CMD_SET_UNDER_ATTACK,
+    LFW_NL_CMD_LOG,
 };
 
-#define LFW_NLX_MAX (LFW_NLX_END - 1)
+enum lfw_genl_groups {
+    LFW_GROUP_LOG,
+    LFW_GROUP_FILTER,
+    LFW_GROUP_HCF,
+};
 
 // taken from kernel levels
-#define LOGLEVEL_EMERG		0	/* system is unusable */
-#define LOGLEVEL_ALERT		1	/* action must be taken immediately */
-#define LOGLEVEL_CRIT		2	/* critical conditions */
-#define LOGLEVEL_ERR		3	/* error conditions */
-#define LOGLEVEL_WARNING	4	/* warning conditions */
-#define LOGLEVEL_NOTICE		5	/* normal but significant condition */
-#define LOGLEVEL_INFO		6	/* informational */
-#define LOGLEVEL_DEBUG		7	/* debug-level messages */
+#define LOGLEVEL_EMERG 0   /* system is unusable */
+#define LOGLEVEL_ALERT 1   /* action must be taken immediately */
+#define LOGLEVEL_CRIT 2    /* critical conditions */
+#define LOGLEVEL_ERR 3     /* error conditions */
+#define LOGLEVEL_WARNING 4 /* warning conditions */
+#define LOGLEVEL_NOTICE 5  /* normal but significant condition */
+#define LOGLEVEL_INFO 6    /* informational */
+#define LOGLEVEL_DEBUG 7   /* debug-level messages */

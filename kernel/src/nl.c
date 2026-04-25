@@ -1,12 +1,13 @@
 #include "nl.h"
-#include "nl_ops.h"
 #include "bogon.h"
+#include "nl_ops.h"
 #include "state.h"
 
-#include <net/genetlink.h>
-#include <linux/vmalloc.h>
 #include <linux/ktime.h>
+#include <linux/vmalloc.h>
+#include <net/genetlink.h>
 
+// clang-format off
 static struct nla_policy lfw_ip_prefix_pol[] = {
     [LFW_NLA_N_IP_ADDR] = { .type = NLA_U32 },
     [LFW_NLA_N_IP_PREFIX_LEN] = { .type = NLA_U8 }
@@ -25,17 +26,20 @@ static struct nla_policy lfw_pol[] = {
 
 static struct genl_ops lfw_nl_ops[] = {
     {
-        .cmd = LFW_NLX_SET_BOGON,
-        .doit = lfw_bogon_set
+        .cmd = LFW_NL_CMD_SET_BOGON,
+        .doit = lfw_bogon_set,
+        .flags = GENL_ADMIN_PERM
     },
     {
-        .cmd = LFW_NLX_SET_UNDER_ATTACK,
+        .cmd = LFW_NL_CMD_SET_UNDER_ATTACK,
         .doit = lfw_set_under_attack
     }
 };
 
 static struct genl_multicast_group lfw_nl_mcgrps[] = {
-    { .name = LFW_NL_MC_GRP_NAME }
+    [LFW_GROUP_LOG] = { .name = "log" },
+    [LFW_GROUP_FILTER] = { .name = "filter" },
+    [LFW_GROUP_HCF] = { .name = "hcf" },
 };
 
 static struct genl_family lfw_nl_family = {
@@ -48,6 +52,7 @@ static struct genl_family lfw_nl_family = {
     .n_mcgrps = ARRAY_SIZE(lfw_nl_mcgrps),
     .policy = lfw_pol
 };
+// clang-format on
 
 int lfw_nl_init(void)
 {
@@ -86,10 +91,13 @@ int lfw_bogon_set(struct sk_buff *skb, struct genl_info *info)
 
     struct nlattr *pos = NULL;
     int rem = 0;
-    nla_for_each_attr_type(pos, LFW_NLA_IP_PREFIX, nlmsg_attrdata(info->nlhdr, GENL_HDRLEN), nlmsg_attrlen(info->nlhdr, GENL_HDRLEN), rem) {
+    nla_for_each_attr_type(pos, LFW_NLA_IP_PREFIX, nlmsg_attrdata(info->nlhdr, GENL_HDRLEN),
+                           nlmsg_attrlen(info->nlhdr, GENL_HDRLEN), rem)
+    {
         int nested_rem = 0;
         struct nlattr *nested_pos = NULL;
-        nla_for_each_nested(nested_pos, pos, nested_rem) {
+        nla_for_each_nested(nested_pos, pos, nested_rem)
+        {
             switch (nla_type(nested_pos)) {
                 case LFW_NLA_N_IP_ADDR:
                     runner->ip_prefix = nla_get_u32(nested_pos);
@@ -148,7 +156,7 @@ int lfw_nl_fn_log(u8 level, u64 timestamp, char *msg)
         return -ENOMEM;
     }
 
-    void *hdr = genlmsg_put(skb, 0, 0, &lfw_nl_family, 0, LFW_NLX_LOG);
+    void *hdr = genlmsg_put(skb, 0, 0, &lfw_nl_family, 0, LFW_NL_CMD_LOG);
     if (!hdr) {
         pr_err("librefw: failed to allocate memory for genl header\n");
         nlmsg_free(skb);
