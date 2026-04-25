@@ -2,6 +2,7 @@
 
 #define LFW_NL_FAMILY_NAME "librefw"
 #define LFW_NL_FAMILY_VER 1
+#define LFW_NL_GROUP_NAME "librefw"
 
 enum lfw_nl_attrs {
     LFW_NLA_UNSPEC = 0,
@@ -17,6 +18,10 @@ enum lfw_nl_attrs {
     LFW_NLA_LOG_LVL,
     LFW_NLA_LOG_MSG,
 
+    LFW_NLA_HCF_IP,
+    LFW_NLA_HCF_HC,
+    LFW_NLA_HCF_TTL,
+
     __LFW_NLA_MAX,
 };
 
@@ -27,21 +32,8 @@ enum lfw_nl_cmds {
 
     LFW_NL_CMD_SET_BOGON,
     LFW_NL_CMD_SET_UNDER_ATTACK,
+
     LFW_NL_CMD_LOG,
+    LFW_NL_CMD_HCF,
+    LFW_NL_CMD_FILTER,
 };
-
-enum lfw_genl_groups {
-    LFW_GROUP_LOG,
-    LFW_GROUP_FILTER,
-    LFW_GROUP_HCF,
-};
-
-// taken from kernel levels
-#define LOGLEVEL_EMERG 0   /* system is unusable */
-#define LOGLEVEL_ALERT 1   /* action must be taken immediately */
-#define LOGLEVEL_CRIT 2    /* critical conditions */
-#define LOGLEVEL_ERR 3     /* error conditions */
-#define LOGLEVEL_WARNING 4 /* warning conditions */
-#define LOGLEVEL_NOTICE 5  /* normal but significant condition */
-#define LOGLEVEL_INFO 6    /* informational */
-#define LOGLEVEL_DEBUG 7   /* debug-level messages */

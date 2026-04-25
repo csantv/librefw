@@ -1,11 +1,14 @@
 #include "bogon.h"
+#include "nl_ops.h"
 #include "utils.h"
-#include "nl.h"
+#include "log.h"
 
+#include <linux/vmalloc.h>
 #include <linux/spinlock.h>
 #include <linux/inet.h>
 #include <linux/kstrtox.h>
 #include <linux/unaligned.h>
+#include <net/genetlink.h>
 
 static struct lfw_bg_state *state = NULL;
 static DEFINE_SPINLOCK(lock);
@@ -171,5 +174,53 @@ int lfw_lookup_bg_tree(u32 ip)
 end:
     rcu_read_unlock();
     return result;
+}
+
+int lfw_bogon_set(struct sk_buff *skb, struct genl_info *info)
+{
+    u32 num_prefix = nla_get_u32_default(info->attrs[LFW_NLA_NUM_IP_PREFIX], 0);
+    if (!num_prefix) {
+        pr_warn("librefw: did not receive number of prefixes\n");
+        return -EINVAL;
+    }
+
+    pr_info("librefw: inserting %d prefixes into bogon filter list\n", num_prefix);
+    struct lfw_ip_prefix *prefix_buf = vzalloc(sizeof(struct lfw_ip_prefix) * num_prefix);
+    if (prefix_buf == NULL) {
+        pr_warn("librefw: could not allocate buffer for ip prefixes\n");
+        return -ENOMEM;
+    }
+    struct lfw_ip_prefix *runner = prefix_buf;
+
+    struct nlattr *pos = NULL;
+    int rem = 0;
+    nla_for_each_attr_type(pos, LFW_NLA_IP_PREFIX, nlmsg_attrdata(info->nlhdr, GENL_HDRLEN),
+                           nlmsg_attrlen(info->nlhdr, GENL_HDRLEN), rem)
+    {
+        int nested_rem = 0;
+        struct nlattr *nested_pos = NULL;
+        nla_for_each_nested(nested_pos, pos, nested_rem)
+        {
+            switch (nla_type(nested_pos)) {
+                case LFW_NLA_N_IP_ADDR:
+                    runner->ip_prefix = nla_get_u32(nested_pos);
+                    break;
+                case LFW_NLA_N_IP_PREFIX_LEN:
+                    runner->ip_prefix_len = nla_get_u8(nested_pos);
+                    break;
+                default:
+                    pr_warn("librefw: got unexpected value in bogon message\n");
+            }
+        }
+        runner++;
+    }
+
+    lfw_load_bg_tree(prefix_buf, num_prefix);
+    vfree(prefix_buf);
+
+    lfw_log(LOGLEVEL_INFO, "done inserting %d prefixes into bogon filter list", num_prefix);
+    pr_info("librefw: done inserting %d prefixes into bogon filter list\n", num_prefix);
+
+    return 0;
 }
 

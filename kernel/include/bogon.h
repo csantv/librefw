@@ -3,6 +3,9 @@
 
 #include <linux/types.h>
 
+struct sk_buff;
+struct genl_info;
+
 struct lfw_ip_prefix {
     u32 ip_prefix;
     u8 ip_prefix_len;
@@ -33,5 +36,7 @@ struct lfw_bg_node* lfw_create_node(void);
 void lfw_free_bg_node(struct lfw_bg_node *node);
 void lfw_load_bg_tree(struct lfw_ip_prefix *prefixes, u32 len);
 int lfw_lookup_bg_tree(u32 ip);
+
+int lfw_bogon_set(struct sk_buff *skb, struct genl_info *info);
 
 #endif

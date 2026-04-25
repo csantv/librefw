@@ -8,9 +8,6 @@ struct genl_info;
 int lfw_nl_init(void);
 void lfw_nl_destroy(void);
 
-int lfw_bogon_set(struct sk_buff *skb, struct genl_info *info);
-int lfw_set_under_attack(struct sk_buff *skb, struct genl_info *info);
+typedef int (*lfw_nl_group_cb)(struct sk_buff *skb, void *data);
+int lfw_make_multicast_msg(u8 cmd, void *data, lfw_nl_group_cb callback);
 
-int lfw_nl_fn_log(u8 level, u64 timestamp, char *msg);
-
-int lfw_log(u8 level, const char *fmt, ...);

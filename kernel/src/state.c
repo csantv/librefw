@@ -2,14 +2,16 @@
 #include "bogon.h"
 #include "hcf.h"
 #include "nl.h"
+#include "nl_ops.h"
+#include "log.h"
 
 #include <linux/rcupdate.h>
 #include <linux/netdevice.h>
 #include <linux/spinlock.h>
+#include <net/genetlink.h>
 
 static struct lfw_state __rcu *state;
 
-//static struct lfw_state *state = NULL;
 static DEFINE_SPINLOCK(lock);
 
 int lfw_init_state(void)
@@ -82,4 +84,17 @@ int lfw_state_set_under_attack(bool new_value)
     spin_unlock(&lock);
     kfree_rcu(old_state, rcu);
     return 0;
+}
+
+int lfw_state_set_under_attack_nl(struct sk_buff *skb, struct genl_info *info)
+{
+    bool under_attack = nla_get_flag(info->attrs[LFW_NLA_UNDER_ATTACK]) == 1 ? true : false;
+
+    if (under_attack) {
+        lfw_log(LOGLEVEL_INFO, "setting under attack\n");
+    } else {
+        lfw_log(LOGLEVEL_INFO, "unsetting under attack\n");
+    }
+
+    return lfw_state_set_under_attack(under_attack);
 }

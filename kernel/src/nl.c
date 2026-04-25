@@ -3,8 +3,6 @@
 #include "nl_ops.h"
 #include "state.h"
 
-#include <linux/ktime.h>
-#include <linux/vmalloc.h>
 #include <net/genetlink.h>
 
 // clang-format off
@@ -21,25 +19,26 @@ static struct nla_policy lfw_pol[] = {
 
     [LFW_NLA_LOG_TS] = { .type = NLA_U64 },
     [LFW_NLA_LOG_LVL] = { .type = NLA_U8 },
-    [LFW_NLA_LOG_MSG] = { .type = NLA_NUL_STRING }
+    [LFW_NLA_LOG_MSG] = { .type = NLA_NUL_STRING },
+
+    [LFW_NLA_HCF_IP] = { .type = NLA_U32 },
+    [LFW_NLA_HCF_HC] = { .type = NLA_U8 },
+    [LFW_NLA_HCF_TTL] = { .type = NLA_U8 },
 };
 
 static struct genl_ops lfw_nl_ops[] = {
     {
         .cmd = LFW_NL_CMD_SET_BOGON,
         .doit = lfw_bogon_set,
-        .flags = GENL_ADMIN_PERM
     },
     {
         .cmd = LFW_NL_CMD_SET_UNDER_ATTACK,
-        .doit = lfw_set_under_attack
+        .doit = lfw_state_set_under_attack_nl
     }
 };
 
 static struct genl_multicast_group lfw_nl_mcgrps[] = {
-    [LFW_GROUP_LOG] = { .name = "log" },
-    [LFW_GROUP_FILTER] = { .name = "filter" },
-    [LFW_GROUP_HCF] = { .name = "hcf" },
+    { .name = LFW_NL_GROUP_NAME },
 };
 
 static struct genl_family lfw_nl_family = {
@@ -73,82 +72,7 @@ void lfw_nl_destroy(void)
     pr_info("librefw: Removing nl server\n");
 }
 
-int lfw_bogon_set(struct sk_buff *skb, struct genl_info *info)
-{
-    u32 num_prefix = nla_get_u32_default(info->attrs[LFW_NLA_NUM_IP_PREFIX], 0);
-    if (!num_prefix) {
-        pr_warn("librefw: did not receive number of prefixes\n");
-        return -EINVAL;
-    }
-
-    pr_info("librefw: inserting %d prefixes into bogon filter list\n", num_prefix);
-    struct lfw_ip_prefix *prefix_buf = vzalloc(sizeof(struct lfw_ip_prefix) * num_prefix);
-    if (prefix_buf == NULL) {
-        pr_warn("librefw: could not allocate buffer for ip prefixes\n");
-        return -ENOMEM;
-    }
-    struct lfw_ip_prefix *runner = prefix_buf;
-
-    struct nlattr *pos = NULL;
-    int rem = 0;
-    nla_for_each_attr_type(pos, LFW_NLA_IP_PREFIX, nlmsg_attrdata(info->nlhdr, GENL_HDRLEN),
-                           nlmsg_attrlen(info->nlhdr, GENL_HDRLEN), rem)
-    {
-        int nested_rem = 0;
-        struct nlattr *nested_pos = NULL;
-        nla_for_each_nested(nested_pos, pos, nested_rem)
-        {
-            switch (nla_type(nested_pos)) {
-                case LFW_NLA_N_IP_ADDR:
-                    runner->ip_prefix = nla_get_u32(nested_pos);
-                    break;
-                case LFW_NLA_N_IP_PREFIX_LEN:
-                    runner->ip_prefix_len = nla_get_u8(nested_pos);
-                    break;
-                default:
-                    pr_warn("librefw: got unexpected value in bogon message\n");
-            }
-        }
-        runner++;
-    }
-
-    lfw_load_bg_tree(prefix_buf, num_prefix);
-    vfree(prefix_buf);
-
-    lfw_log(LOGLEVEL_INFO, "done inserting %d prefixes into bogon filter list", num_prefix);
-    pr_info("librefw: done inserting %d prefixes into bogon filter list\n", num_prefix);
-
-    return 0;
-}
-
-int lfw_log(u8 level, const char *fmt, ...)
-{
-    struct timespec64 ts;
-    ktime_get_ts64(&ts);
-
-    va_list args;
-    va_start(args, fmt);
-
-    char *msgbuf = kzalloc(sizeof(char) * 1024, GFP_KERNEL);
-    if (msgbuf == NULL) {
-        pr_err("librefw: could not allocate log message buffer\n");
-        return -ENOMEM;
-    }
-
-    int len = vsnprintf(msgbuf, 1024, fmt, args);
-    if (len > 1024) {
-        pr_warn("librefw: truncating log message\n");
-    }
-
-    int ret = lfw_nl_fn_log(level, ts.tv_sec, msgbuf);
-
-    va_end(args);
-    kfree(msgbuf);
-
-    return ret;
-}
-
-int lfw_nl_fn_log(u8 level, u64 timestamp, char *msg)
+int lfw_make_multicast_msg(u8 cmd, void *data, lfw_nl_group_cb callback)
 {
     struct sk_buff *skb = genlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
     if (!skb) {
@@ -156,38 +80,22 @@ int lfw_nl_fn_log(u8 level, u64 timestamp, char *msg)
         return -ENOMEM;
     }
 
-    void *hdr = genlmsg_put(skb, 0, 0, &lfw_nl_family, 0, LFW_NL_CMD_LOG);
+    void *hdr = genlmsg_put(skb, 0, 0, &lfw_nl_family, 0, cmd);
     if (!hdr) {
         pr_err("librefw: failed to allocate memory for genl header\n");
         nlmsg_free(skb);
         return -ENOMEM;
     }
 
-    int ret = nla_put_u8(skb, LFW_NLA_LOG_LVL, level);
-    if (ret) {
-        pr_err("librefw: could not put loglevel into log message\n");
+    int ret = callback(skb, data);
+    if (ret)
         goto err;
-    }
-
-    ret = nla_put_u64_64bit(skb, LFW_NLA_LOG_TS, timestamp, LFW_NLA_UNSPEC);
-    if (ret) {
-        pr_err("librefw: could not log put timestamp into log message\n");
-        goto err;
-    }
-
-    ret = nla_put_string(skb, LFW_NLA_LOG_MSG, msg);
-    if (ret) {
-        pr_err("librefw: could not put message into log message\n");
-        goto err;
-    }
 
     genlmsg_end(skb, hdr);
 
     ret = genlmsg_multicast(&lfw_nl_family, skb, 0, 0, GFP_KERNEL);
     if (ret == -ESRCH) {
-        pr_warn("librefw: multicast message sent, but nobody was listening...\n");
-    } else if (ret) {
-        pr_err("librefw: failed to send multicast genl message\n");
+        return 0;
     }
 
     return ret;
@@ -198,15 +106,3 @@ err:
     return ret;
 }
 
-int lfw_set_under_attack(struct sk_buff *skb, struct genl_info *info)
-{
-    bool under_attack = nla_get_flag(info->attrs[LFW_NLA_UNDER_ATTACK]) == 1 ? true : false;
-
-    if (under_attack) {
-        pr_info("librefw: setting under attack\n");
-    } else {
-        pr_info("librefw: unsetting under attack\n");
-    }
-
-    return lfw_state_set_under_attack(under_attack);
-}
