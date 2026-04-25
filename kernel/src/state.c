@@ -34,7 +34,7 @@ int lfw_init_state(void)
         goto err_nl_destroy;
     }
 
-    ret = lfw_init_hc_state();
+    ret = hcf_init_state();
     if (ret < 0) {
         goto err_free_bg;
     }
@@ -53,7 +53,7 @@ void lfw_free_state(void)
 {
     lfw_nl_destroy();
     lfw_free_bg_state();
-    lfw_free_hc_state();
+    hcf_free_state();
     kfree(state);
 }
 

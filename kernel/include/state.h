@@ -1,7 +1,7 @@
 #ifndef LFW_STATE
 #define LFW_STATE
 
-#include <linux/rcupdate.h>
+#include <linux/types.h>
 
 struct lfw_state {
     bool under_attack;

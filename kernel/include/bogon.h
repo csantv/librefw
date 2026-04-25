@@ -1,8 +1,7 @@
 #ifndef LFW_BOGON_H
 #define LFW_BOGON_H
 
-#include <linux/slab.h>
-#include <linux/rcupdate.h>
+#include <linux/types.h>
 
 struct lfw_ip_prefix {
     u32 ip_prefix;

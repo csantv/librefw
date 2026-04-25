@@ -1,40 +1,11 @@
 #pragma once
 
-#include <linux/rcupdate.h>
-#include <linux/slab.h>
-#include <linux/workqueue.h>
+#include <linux/types.h>
 
-struct hcf_node {
-    struct hcf_node __rcu *child[2];
-    u8 hc;
-    u8 ttl;
-    struct rcu_head rcu;
-};
+struct hcf_state;
 
-void free_hcf_tree(void);
-void free_hcf_node(struct hcf_node *node);
-struct hcf_node *create_hcf_node(void);
-struct hcf_node *clone_hcf_node(struct hcf_node *old);
-void free_hcf_node_rcu(struct rcu_head *rp);
+int hcf_init_state(void);
+void hcf_free_state(void);
 
-struct lfw_hc_add_node_task {
-    struct work_struct real_work;
-    u32 source_ip;
-    u8 ttl;
-};
-
-struct lfw_hc_state {
-    struct workqueue_struct *workqueue;
-    struct kmem_cache *mem;
-    struct hcf_node __rcu *tree;
-};
-
-int lfw_init_hc_state(void);
-void lfw_free_hc_state(void);
-
-void lfw_do_work(struct work_struct *work);
-int lfw_lookup_hc_tree(u32 source_ip, u8 tll);
-
-int lfw_add_hc_node(u32 source_ip, u8 ttl);
-
-int hcf_get_initial_ttl(u8 ttl);
+int hcf_lookup_tree(u32 source_ip, u8 ttl);
+int hcf_register_ip(u32 source_ip, u8 ttl);

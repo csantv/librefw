@@ -75,7 +75,7 @@ unsigned int lfw_filter_ipv4_hook_fn(void *priv, struct sk_buff *skb, const stru
         return NF_DROP;
     }
 
-    if (lfw_state_is_under_attack() && lfw_lookup_hc_tree(saddr, iph->ttl) < 1) {
+    if (lfw_state_is_under_attack() && hcf_lookup_tree(saddr, iph->ttl) < 1) {
         pr_info_ratelimited("librefw: dropping packet from ip %pI4\n", &iph->saddr);
         return NF_DROP;
     }
@@ -99,7 +99,7 @@ unsigned int lfw_hc_learn_ipv4_hook_fn(void *priv, struct sk_buff *skb, const st
         return NF_ACCEPT;
     }
 
-    int ret = lfw_add_hc_node(get_unaligned_be32(&iph->saddr), iph->ttl);
+    int ret = hcf_register_ip(get_unaligned_be32(&iph->saddr), iph->ttl);
     if (unlikely(ret < 0)) {
         pr_warn_ratelimited("librefw: lfw_add_hc_node - %d\n", ret);
     }
