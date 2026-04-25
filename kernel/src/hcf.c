@@ -23,7 +23,7 @@ int hcf_init_state(void)
         goto err_free_state;
     }
 
-    st->workqueue = create_workqueue("lfw_hcf_wq");
+    st->workqueue = alloc_workqueue("lfw_hcf_wq", WQ_UNBOUND | WQ_HIGHPRI, 0);
     if (!st->workqueue) {
         goto err_kmem_free;
     }
@@ -220,12 +220,11 @@ end:
     return result;
 }
 
-int hcf_register_ip(u32 source_ip, u8 ttl)
+void hcf_register_ip(u32 source_ip, u8 ttl)
 {
-    struct hcf_add_node_task *task = kzalloc(sizeof(struct hcf_add_node_task), GFP_KERNEL);
+    struct hcf_add_node_task *task = kzalloc(sizeof(struct hcf_add_node_task), GFP_ATOMIC);
     if (task == NULL) {
-        pr_err_ratelimited("librefw: could not allocate memory for new hc node task\n");
-        return -ENOMEM;
+        return;
     }
 
     task->source_ip = source_ip;
@@ -234,10 +233,6 @@ int hcf_register_ip(u32 source_ip, u8 ttl)
 
     // task was already queued (rare)
     if (!queue_work(state->workqueue, &task->real_work)) {
-        pr_warn_ratelimited("librefw: add now task was already queued\n");
         kfree(task);
-        return -EALREADY;
     }
-
-    return 0;
 }

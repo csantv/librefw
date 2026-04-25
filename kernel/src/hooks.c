@@ -90,7 +90,7 @@ unsigned int lfw_hc_learn_ipv4_hook_fn(void *priv, struct sk_buff *skb, const st
         return NF_ACCEPT;
     }
 
-    if (iph->protocol != IPPROTO_TCP && iph->protocol != IPPROTO_UDP) {
+    if (iph->protocol != IPPROTO_TCP) {
         return NF_ACCEPT;
     }
 
@@ -99,10 +99,7 @@ unsigned int lfw_hc_learn_ipv4_hook_fn(void *priv, struct sk_buff *skb, const st
         return NF_ACCEPT;
     }
 
-    int ret = hcf_register_ip(get_unaligned_be32(&iph->saddr), iph->ttl);
-    if (unlikely(ret < 0)) {
-        pr_warn_ratelimited("librefw: lfw_add_hc_node - %d\n", ret);
-    }
+    hcf_register_ip(get_unaligned_be32(&iph->saddr), iph->ttl);
 
     return NF_ACCEPT;
 }
