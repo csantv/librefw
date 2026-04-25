@@ -1,13 +1,14 @@
-#include "hcf_internal.h"
 #include "hcf.h"
+#include "hcf_internal.h"
+#include "nl.h"
+#include "nl_ops.h"
 
 #include <linux/math.h>
-#include <linux/spinlock.h>
-
-// TODO: maybe use hrtimer
+#include <linux/mutex.h>
+#include <net/genetlink.h>
 
 static struct hcf_state *state = NULL;
-static DEFINE_SPINLOCK(lock);
+static DEFINE_MUTEX(lock);
 
 int hcf_init_state(void)
 {
@@ -61,10 +62,10 @@ void hcf_free_state(void)
 
 void hcf_free_tree(void)
 {
-    spin_lock(&lock);
+    mutex_lock(&lock);
     struct hcf_node *old_root = rcu_dereference_protected(state->tree, lockdep_is_held(&lock));
     rcu_assign_pointer(state->tree, NULL);
-    spin_unlock(&lock);
+    mutex_unlock(&lock);
 
     if (!old_root) {
         return;
@@ -116,13 +117,13 @@ void hcf_register_ip_work(struct work_struct *work)
 
     struct hcf_node *new_root, *runner, *new_runner;
     struct hcf_add_node_task *task = container_of(work, struct hcf_add_node_task, real_work);
-    spin_lock(&lock);
+    mutex_lock(&lock);
 
     // clone the whole branch until you get to a non rcu portion, then create remaining branch
     runner = rcu_dereference_protected(state->tree, lockdep_is_held(&lock));
     if (!runner) {
-        spin_unlock(&lock);
-        return;
+        mutex_unlock(&lock);
+        goto end;
     }
 
     new_root = hcf_clone_node(runner);
@@ -159,8 +160,9 @@ void hcf_register_ip_work(struct work_struct *work)
 
     rcu_assign_pointer(state->tree, new_root);
 
-    spin_unlock(&lock);
+    mutex_unlock(&lock);
     if (nodes_created > 0) {
+        hcf_log_new_ip(task->source_ip, new_runner->ttl, new_runner->hc);
         u32 net_ip = htonl(task->source_ip);
         pr_info_ratelimited("librefw: [hcf] adding new node for ip %pI4 with hc %d, %d nodes created\n", &net_ip,
                             new_runner->hc, nodes_created);
@@ -170,6 +172,7 @@ void hcf_register_ip_work(struct work_struct *work)
         call_rcu(&nodes_to_free[i]->rcu, hcf_free_node_rcu);
     }
 
+end:
     kfree(task);
 }
 
@@ -235,4 +238,23 @@ void hcf_register_ip(u32 source_ip, u8 ttl)
     if (!queue_work(state->workqueue, &task->real_work)) {
         kfree(task);
     }
+}
+
+int hcf_log_new_ip(u32 source_ip, u8 ttl, u8 hc)
+{
+    struct hcf_ip_ctx ctx = {source_ip, ttl, hc};
+    return lfw_make_multicast_msg(LFW_NL_GROUP_HCF, LFW_NL_CMD_HCF, &ctx, hcf_build_log_msg);
+}
+
+int hcf_build_log_msg(struct sk_buff *skb, void *data)
+{
+    struct hcf_ip_ctx *ctx = data;
+
+    if (nla_put_u32(skb, LFW_NLA_HCF_IP, ctx->source_ip) || nla_put_u8(skb, LFW_NLA_HCF_TTL, ctx->ttl) ||
+        nla_put_u8(skb, LFW_NLA_HCF_HC, ctx->hc)) {
+        pr_err("librefw: could not build hcf log message\n");
+        return -EMSGSIZE;
+    }
+
+    return 0;
 }
