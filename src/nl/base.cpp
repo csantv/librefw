@@ -4,6 +4,8 @@
 #include <netlink/genl/ctrl.h>
 #include <netlink/genl/genl.h>
 
+#include <iostream>
+
 namespace lfw
 {
 
@@ -63,8 +65,16 @@ NetlinkMulticastBase::NetlinkMulticastBase(const char *family_name, const char *
 void NetlinkMulticastBase::wait_for_messages()
 {
     auto fn = [](struct nl_msg *msg, void *arg) -> int {
+        nlattr_vec tb;
+        try {
+            tb = parse_args(msg);
+        } catch (const std::exception &ex) {
+            std::cerr << ex.what() << '\n';
+            return NL_SKIP;
+        }
+
         auto *ptr = static_cast<NetlinkMulticastBase *>(arg);
-        return ptr->on_message_received(msg);
+        return ptr->on_message_received(tb);
     };
     int ret = nl_socket_modify_cb(sock.get(), NL_CB_VALID, NL_CB_CUSTOM, fn, this);
 
@@ -75,6 +85,17 @@ void NetlinkMulticastBase::wait_for_messages()
     while (1) {
         nl_recvmsgs_default(sock.get());
     }
+}
+
+auto NetlinkMulticastBase::parse_args(struct nl_msg *msg) -> std::vector<struct nlattr *>
+{
+    auto *hdr = static_cast<struct genlmsghdr *>(nlmsg_data(nlmsg_hdr(msg)));
+    std::vector<struct nlattr *> tb(LFW_NLA_MAX + 1);
+    int ret = nla_parse(tb.data(), LFW_NLA_MAX, genlmsg_attrdata(hdr, 0), genlmsg_attrlen(hdr, 0), nullptr);
+    if (ret) {
+        throw std::system_error(std::error_code(-ret, std::generic_category()), "unable to parse message");
+    }
+    return tb;
 }
 
 } // namespace lfw

@@ -24,7 +24,7 @@ void CommandDispatcher::send_bogon_list(std::string filename)
         return;
     }
 
-    auto msg = make_message(LFW_NLX_SET_BOGON);
+    auto msg = make_message(LFW_NL_CMD_SET_BOGON);
 
     std::string line;
     unsigned int num_lines = 0;
@@ -60,7 +60,7 @@ void CommandDispatcher::send_bogon_list(std::string filename)
 
 void CommandDispatcher::set_under_attack(bool under_attack)
 {
-    auto msg = make_message(LFW_NLX_SET_UNDER_ATTACK);
+    auto msg = make_message(LFW_NL_CMD_SET_UNDER_ATTACK);
 
     std::cout << under_attack << std::endl;
 

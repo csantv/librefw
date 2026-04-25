@@ -11,8 +11,7 @@ class LogListener final : public NetlinkMulticastBase
     LogListener();
 
   private:
-    int group_id = -1;
-    auto on_message_received(struct nl_msg *msg) -> int override;
+    auto on_message_received(nlattr_vec& tb) -> int override;
 };
 
 } // namespace lfw
