@@ -11,7 +11,7 @@ class HcfListener final : public NetlinkMulticastBase
     HcfListener();
 
   private:
-    auto on_message_received(struct nl_msg *msg) -> int override;
+    auto on_message_received(nlattr_vec &tb) -> int override;
 };
 
 }; // namespace lfw

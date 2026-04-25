@@ -3,20 +3,16 @@
 
 #include <netlink/genl/genl.h>
 
-#include <iostream>
-
 namespace lfw
 {
 
-auto HcfListener::on_message_received(struct nl_msg *msg) -> int
+HcfListener::HcfListener()
+    : NetlinkMulticastBase(LFW_NL_FAMILY_NAME, "hcf")
 {
-    nlattr_vec tb;
-    try {
-        tb = parse_args(msg);
-    } catch (std::exception &ex) {
-        std::cerr << ex.what() << '\n';
-        return NL_SKIP;
-    }
+}
+
+auto HcfListener::on_message_received([[maybe_unused]] nlattr_vec &tb) -> int
+{
 
     return NL_OK;
 }

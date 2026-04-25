@@ -23,6 +23,7 @@ target_sources(librefw PRIVATE
     src/nl/log.cpp
     src/nl/base.cpp
     src/nl/command.cpp
+    src/nl/hcf.cpp
 )
 
 target_include_directories(librefw PRIVATE include/)
