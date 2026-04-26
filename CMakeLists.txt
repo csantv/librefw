@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.28)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -10,6 +10,17 @@ set(CMAKE_BUILD_TYPE Debug CACHE STRING "build type")
 project(lfw LANGUAGES CXX)
 
 add_executable(librefw)
+
+include(FetchContent)
+
+FetchContent_Declare(
+  sqlpp23
+  GIT_REPOSITORY https://github.com/rbock/sqlpp23.git
+  GIT_TAG        1c47ff3c7c3542aa6091266be77122c7ced031e8 # 0.69
+)
+
+set(BUILD_SQLITE3_CONNECTOR ON)
+FetchContent_MakeAvailable(sqlpp23)
 
 find_package(PkgConfig REQUIRED)
 find_package(Threads REQUIRED)
@@ -31,6 +42,8 @@ target_link_libraries(librefw PRIVATE
     Threads::Threads
     CLI11::CLI11
     PkgConfig::NL
+    sqlpp23::core
+    sqlpp23::sqlite3
 )
 
 install(TARGETS librefw RUNTIME)

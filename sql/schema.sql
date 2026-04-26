@@ -1,0 +1,16 @@
+create table hcf_ipv4_history(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ip_addr BLOB NOT NULL CHECK (length(ip_addr) = 4),
+    ttl INTEGER,
+    hc INTEGER,
+    UNIQUE(ip_addr)
+);
+
+create table hcf_ipv6_history(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ip_addr BLOB NOT NULL CHECK (length(ip_addr) = 16),
+    ttl INTEGER,
+    hc INTEGER,
+    UNIQUE(ip_addr)
+);
+
