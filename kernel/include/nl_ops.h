@@ -39,8 +39,5 @@ enum lfw_nl_cmds {
 enum lfw_nl_groups {
     LFW_NL_GROUP_LOG,
     LFW_NL_GROUP_HCF,
-
-    __LFW_NL_GROUP_MAX,
 };
 
-#define LFW_NL_GROUP_MAX (__LFW_NL_GROUP_MAX - 1)

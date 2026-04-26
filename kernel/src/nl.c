@@ -49,7 +49,7 @@ static struct genl_family lfw_nl_family = {
     .ops = lfw_nl_ops,
     .n_ops = ARRAY_SIZE(lfw_nl_ops),
     .mcgrps = lfw_nl_mcgrps,
-    .n_mcgrps = LFW_NL_GROUP_MAX,
+    .n_mcgrps = ARRAY_SIZE(lfw_nl_mcgrps),
     .policy = lfw_pol
 };
 // clang-format on
