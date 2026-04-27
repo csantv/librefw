@@ -22,6 +22,11 @@ namespace lfw::sql {
       using data_type = ::sqlpp::blob;
       using has_default = std::false_type;
     };
+    struct ip_addr_str {
+      SQLPP_CREATE_NAME_TAG_FOR_SQL_AND_CPP(ip_addr_str, ip_addr_str);
+      using data_type = std::optional<::sqlpp::text>;
+      using has_default = std::true_type;
+    };
     struct ttl {
       SQLPP_CREATE_NAME_TAG_FOR_SQL_AND_CPP(ttl, ttl);
       using data_type = std::optional<::sqlpp::integral>;
@@ -37,6 +42,7 @@ namespace lfw::sql {
     using _table_columns = sqlpp::table_columns<T,
                id,
                ip_addr,
+               ip_addr_str,
                ttl,
                hc>;
     using _required_insert_columns = sqlpp::detail::type_set<
