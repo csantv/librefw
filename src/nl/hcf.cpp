@@ -23,7 +23,7 @@ HcfListener::HcfListener()
 {
 }
 
-auto HcfListener::on_message_received([[maybe_unused]] nlattr_vec &tb) -> int
+auto HcfListener::on_message_received(nlattr_vec &tb) -> int
 {
     uint32_t source_ip = nla_get_u32(tb[LFW_NLA_HCF_IP]);
     uint8_t ttl = nla_get_u8(tb[LFW_NLA_HCF_TTL]);
