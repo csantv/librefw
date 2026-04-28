@@ -1,6 +1,6 @@
 #include "nl/command.hpp"
-#include "nl/log.hpp"
 #include "nl/hcf.hpp"
+#include "nl/log.hpp"
 
 #include <string>
 

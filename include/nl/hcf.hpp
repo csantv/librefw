@@ -1,7 +1,7 @@
 #pragma once
 
-#include "nl/base.hpp"
 #include "db/manager.hpp"
+#include "nl/base.hpp"
 
 namespace lfw
 {
@@ -14,7 +14,7 @@ class HcfListener final : public NetlinkMulticastBase
   protected:
     auto on_message_received(nlattr_vec &tb) -> int override;
 
-private:
+  private:
     db::DbManager manager;
 };
 

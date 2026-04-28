@@ -1,5 +1,6 @@
 #include "nl.h"
 #include "bogon.h"
+#include "hcf.h"
 #include "nl_ops.h"
 #include "state.h"
 
@@ -11,9 +12,21 @@ static struct nla_policy lfw_ip_prefix_pol[] = {
     [LFW_NLA_N_IP_PREFIX_LEN] = { .type = NLA_U8 }
 };
 
+static struct nla_policy hcf_ip_history_entry_pol[] = {
+    [LFW_NLA_HCF_HISTORY_ENTRY_IP] = { .type = NLA_BINARY, .len = 16 },
+    [LFW_NLA_HCF_HISTORY_ENTRY_HC] = { .type = NLA_U8 },
+    [LFW_NLA_HCF_HISTORY_ENTRY_TTL] = { .type = NLA_U8 },
+};
+
+static struct nla_policy hcf_ip_history_pol[] = {
+    [LFW_NLA_HCF_HISTORY_ENTRY] = NLA_POLICY_NESTED(hcf_ip_history_entry_pol),
+};
+
 static struct nla_policy lfw_pol[] = {
     [LFW_NLA_NUM_IP_PREFIX] = { .type = NLA_U32 },
     [LFW_NLA_IP_PREFIX] = NLA_POLICY_NESTED(lfw_ip_prefix_pol),
+
+    [LFW_NLA_HCF_HISTORY] = NLA_POLICY_NESTED(hcf_ip_history_pol),
 
     [LFW_NLA_UNDER_ATTACK] = { .type = NLA_FLAG },
 
@@ -34,6 +47,10 @@ static struct genl_ops lfw_nl_ops[] = {
     {
         .cmd = LFW_NL_CMD_SET_UNDER_ATTACK,
         .doit = lfw_state_set_under_attack_nl
+    },
+    {
+        .cmd = LFW_NL_CMD_SET_HCF,
+        .doit = hcf_register_ip_history
     }
 };
 
@@ -106,4 +123,3 @@ err:
     nlmsg_free(skb);
     return ret;
 }
-

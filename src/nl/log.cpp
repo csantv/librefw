@@ -4,8 +4,8 @@
 
 #include <netlink/genl/genl.h>
 
-#include <iostream>
 #include <array>
+#include <iostream>
 
 namespace lfw
 {
@@ -15,17 +15,17 @@ LogListener::LogListener()
 {
 }
 
-auto LogListener::on_message_received(nlattr_vec& tb) -> int
+auto LogListener::on_message_received(nlattr_vec &tb) -> int
 {
     if (!tb.at(LFW_NLA_LOG_MSG)) {
         std::cerr << "msg attribute missing from message\n";
         return NL_SKIP;
     }
 
-    std::string message {nla_get_string(tb[LFW_NLA_LOG_MSG])};
+    std::string message{nla_get_string(tb[LFW_NLA_LOG_MSG])};
     uint64_t timestamp = nla_get_u64(tb[LFW_NLA_LOG_TS]);
     uint8_t level = nla_get_u8(tb[LFW_NLA_LOG_LVL]);
-    std::array level_str {"EMERGENCY", "ALERT", "CRITICAL", "ERROR", "WARNING", "NOTICE", "INFO", "DEBUG"};
+    std::array level_str{"EMERGENCY", "ALERT", "CRITICAL", "ERROR", "WARNING", "NOTICE", "INFO", "DEBUG"};
 
     std::cout << level_str[level] << " " << timestamp << " " << message;
 

@@ -21,6 +21,12 @@ enum lfw_nl_attrs {
     LFW_NLA_HCF_HC,
     LFW_NLA_HCF_TTL,
 
+    LFW_NLA_HCF_HISTORY,
+    LFW_NLA_HCF_HISTORY_ENTRY,
+    LFW_NLA_HCF_HISTORY_ENTRY_IP,
+    LFW_NLA_HCF_HISTORY_ENTRY_HC,
+    LFW_NLA_HCF_HISTORY_ENTRY_TTL,
+
     __LFW_NLA_MAX,
 };
 
@@ -29,6 +35,7 @@ enum lfw_nl_attrs {
 enum lfw_nl_cmds {
     LFW_NL_CMD_UNSPEC = 0,
 
+    LFW_NL_CMD_SET_HCF,
     LFW_NL_CMD_SET_BOGON,
     LFW_NL_CMD_SET_UNDER_ATTACK,
 
@@ -40,4 +47,3 @@ enum lfw_nl_groups {
     LFW_NL_GROUP_LOG,
     LFW_NL_GROUP_HCF,
 };
-
