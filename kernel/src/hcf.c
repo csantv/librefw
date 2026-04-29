@@ -261,5 +261,6 @@ int hcf_build_log_msg(struct sk_buff *skb, void *data)
 
 int hcf_register_ip_history(struct sk_buff *skb, struct genl_info *info)
 {
+    pr_info("received hcf history list");
     return 0;
 }

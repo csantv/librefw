@@ -35,7 +35,7 @@ enum lfw_nl_attrs {
 enum lfw_nl_cmds {
     LFW_NL_CMD_UNSPEC = 0,
 
-    LFW_NL_CMD_SET_HCF,
+    LFW_NL_CMD_SET_HCF_HISTORY,
     LFW_NL_CMD_SET_BOGON,
     LFW_NL_CMD_SET_UNDER_ATTACK,
 

@@ -1,5 +1,6 @@
 #include "nl/command.hpp"
 #include "nl_ops.h"
+#include "db/manager.hpp"
 
 #include <arpa/inet.h>
 #include <netlink/genl/genl.h>
@@ -62,8 +63,6 @@ void CommandDispatcher::set_under_attack(bool under_attack)
 {
     auto msg = make_message(LFW_NL_CMD_SET_UNDER_ATTACK);
 
-    std::cout << under_attack << std::endl;
-
     if (under_attack) {
         if (nla_put_flag(msg.get(), LFW_NLA_UNDER_ATTACK) < 0) {
             std::cerr << "failed to add under attack flag\n";
@@ -74,8 +73,6 @@ void CommandDispatcher::set_under_attack(bool under_attack)
     int ret = nl_send_auto(sock.get(), msg.get());
     if (ret < 0) {
         std::cout << "nl_send_auto failed - " << ret << std::endl;
-    } else {
-        std::cout << "set under_attack " << ret << std::endl;
     }
 }
 

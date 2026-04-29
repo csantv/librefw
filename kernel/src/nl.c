@@ -49,7 +49,7 @@ static struct genl_ops lfw_nl_ops[] = {
         .doit = lfw_state_set_under_attack_nl
     },
     {
-        .cmd = LFW_NL_CMD_SET_HCF,
+        .cmd = LFW_NL_CMD_SET_HCF_HISTORY,
         .doit = hcf_register_ip_history
     }
 };

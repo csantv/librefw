@@ -24,18 +24,18 @@ namespace lfw::sql {
     };
     struct ip_addr_str {
       SQLPP_CREATE_NAME_TAG_FOR_SQL_AND_CPP(ip_addr_str, ip_addr_str);
-      using data_type = std::optional<::sqlpp::text>;
-      using has_default = std::true_type;
+      using data_type = ::sqlpp::text;
+      using has_default = std::false_type;
     };
     struct ttl {
       SQLPP_CREATE_NAME_TAG_FOR_SQL_AND_CPP(ttl, ttl);
-      using data_type = std::optional<::sqlpp::integral>;
-      using has_default = std::true_type;
+      using data_type = ::sqlpp::integral;
+      using has_default = std::false_type;
     };
     struct hc {
       SQLPP_CREATE_NAME_TAG_FOR_SQL_AND_CPP(hc, hc);
-      using data_type = std::optional<::sqlpp::integral>;
-      using has_default = std::true_type;
+      using data_type = ::sqlpp::integral;
+      using has_default = std::false_type;
     };
     SQLPP_CREATE_NAME_TAG_FOR_SQL_AND_CPP(hcf_ipv4_history, hcf_ipv4_history);
     template<typename T>
@@ -46,7 +46,10 @@ namespace lfw::sql {
                ttl,
                hc>;
     using _required_insert_columns = sqlpp::detail::type_set<
-               sqlpp::column_t<sqlpp::table_t<hcf_ipv4_history_>, ip_addr>>;
+               sqlpp::column_t<sqlpp::table_t<hcf_ipv4_history_>, ip_addr>,
+               sqlpp::column_t<sqlpp::table_t<hcf_ipv4_history_>, ip_addr_str>,
+               sqlpp::column_t<sqlpp::table_t<hcf_ipv4_history_>, ttl>,
+               sqlpp::column_t<sqlpp::table_t<hcf_ipv4_history_>, hc>>;
   };
   using hcf_ipv4_history = ::sqlpp::table_t<hcf_ipv4_history_>;
 

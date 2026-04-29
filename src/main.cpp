@@ -41,6 +41,12 @@ int main(int argc, char *argv[])
         hcf.wait_for_messages();
     });
 
+    CLI::App *set_hcf_cmd = app.add_subcommand("set_hcf", "set hcf history");
+    set_hcf_cmd->callback([] {
+        lfw::HcfListener hcf;
+        hcf.set_ip_history();
+    });
+
     CLI11_PARSE(app, argc, argv)
 
     return 0;
