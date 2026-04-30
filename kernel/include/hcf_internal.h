@@ -36,7 +36,7 @@ struct hcf_node *hcf_clone_node(struct hcf_node *old);
 void hcf_free_node(struct hcf_node *node);
 void hcf_free_node_rcu(struct rcu_head *rp);
 
-void hcf_free_tree(void);
+void hcf_swap_tree(struct hcf_node *new_tree);
 
 void hcf_register_ip_work(struct work_struct *work);
 int hcf_get_initial_ttl(u8 ttl);

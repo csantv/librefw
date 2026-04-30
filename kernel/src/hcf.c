@@ -5,6 +5,7 @@
 
 #include <linux/math.h>
 #include <linux/mutex.h>
+#include <linux/unaligned.h>
 #include <net/genetlink.h>
 
 static struct hcf_state *state = NULL;
@@ -55,16 +56,16 @@ void hcf_free_state(void)
         destroy_workqueue(state->workqueue);
     }
 
-    hcf_free_tree();
+    hcf_swap_tree(NULL);
     kmem_cache_destroy(state->mem);
     kfree(state);
 }
 
-void hcf_free_tree(void)
+void hcf_swap_tree(struct hcf_node *new_tree)
 {
     mutex_lock(&lock);
     struct hcf_node *old_root = rcu_dereference_protected(state->tree, lockdep_is_held(&lock));
-    rcu_assign_pointer(state->tree, NULL);
+    rcu_assign_pointer(state->tree, new_tree);
     mutex_unlock(&lock);
 
     if (!old_root) {
@@ -85,6 +86,8 @@ void hcf_free_node(struct hcf_node *node)
     hcf_free_node(node->child[1]);
 
     kmem_cache_free(state->mem, node);
+
+    // call_rcu(&node->rcu, hcf_free_node_rcu);
 }
 
 struct hcf_node *hcf_create_node(void)
@@ -261,6 +264,59 @@ int hcf_build_log_msg(struct sk_buff *skb, void *data)
 
 int hcf_register_ip_history(struct sk_buff *skb, struct genl_info *info)
 {
-    pr_info("received hcf history list");
+    struct hcf_node *new_tree = hcf_create_node();
+    if (unlikely(!new_tree)) {
+        pr_err("librefw: could not allocate memory for new hcf tree\n");
+        return -ENOMEM;
+    }
+
+    struct nlattr *pos = NULL;
+    int rem = 0;
+    nla_for_each_attr_type(pos, LFW_NLA_HCF_HISTORY, nlmsg_attrdata(info->nlhdr, GENL_HDRLEN),
+                           nlmsg_attrlen(info->nlhdr, GENL_HDRLEN), rem)
+    {
+        int nested_rem = 0;
+        struct nlattr *nested_pos = NULL;
+
+        struct hcf_node *runner = new_tree;
+        u32 ip_addr = 0;
+        u8 ttl = 0, hc = 0;
+        nla_for_each_nested(nested_pos, pos, nested_rem)
+        {
+            switch (nla_type(nested_pos)) {
+                case LFW_NLA_HCF_HISTORY_IP: {
+                    int data_len = nla_len(nested_pos);
+
+                    if (data_len == 4) {
+                        __be32 tmp = nla_get_in_addr(nested_pos);
+                        ip_addr = get_unaligned_be32(&tmp);
+                    }
+                    break;
+                }
+                case LFW_NLA_HCF_TTL:
+                    ttl = nla_get_u8(nested_pos);
+                    break;
+                case LFW_NLA_HCF_HC:
+                    hc = nla_get_u8(nested_pos);
+                    break;
+                default:
+                    pr_warn("librefw: got unexpected value in hcf history\n");
+            }
+        }
+
+        for (int i = 31; i >= 8; i--) {
+            int bit = (ip_addr >> i) & 1;
+            if (!runner->child[bit]) {
+                runner->child[bit] = hcf_create_node();
+            }
+            runner = runner->child[bit];
+        }
+        runner->ttl = ttl;
+        runner->hc = hc;
+    }
+
+    hcf_swap_tree(new_tree);
+    pr_info("librefw: inserted hcf ip history\n");
+
     return 0;
 }

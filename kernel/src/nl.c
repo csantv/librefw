@@ -12,14 +12,10 @@ static struct nla_policy lfw_ip_prefix_pol[] = {
     [LFW_NLA_N_IP_PREFIX_LEN] = { .type = NLA_U8 }
 };
 
-static struct nla_policy hcf_ip_history_entry_pol[] = {
-    [LFW_NLA_HCF_HISTORY_ENTRY_IP] = { .type = NLA_BINARY, .len = 16 },
-    [LFW_NLA_HCF_HISTORY_ENTRY_HC] = { .type = NLA_U8 },
-    [LFW_NLA_HCF_HISTORY_ENTRY_TTL] = { .type = NLA_U8 },
-};
-
 static struct nla_policy hcf_ip_history_pol[] = {
-    [LFW_NLA_HCF_HISTORY_ENTRY] = NLA_POLICY_NESTED(hcf_ip_history_entry_pol),
+    [LFW_NLA_HCF_HISTORY_IP] = { .type = NLA_BINARY, .len = 16 },
+    [LFW_NLA_HCF_HISTORY_HC] = { .type = NLA_U8 },
+    [LFW_NLA_HCF_HISTORY_TTL] = { .type = NLA_U8 },
 };
 
 static struct nla_policy lfw_pol[] = {

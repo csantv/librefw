@@ -62,35 +62,30 @@ auto HcfListener::on_message_received(nlattr_vec &tb) -> int
 
 void HcfListener::set_ip_history()
 {
+    auto rows = [&]() {
+        try {
+            return manager.execute([](db::connection &db) {
+                sql::hcf_ipv4_history tab{};
+                return db(select(all_of(tab)).from(tab));
+            });
+        } catch (const std::exception &e) {
+            std::cerr << e.what() << '\n';
+            throw;
+        }
+    }();
+
     auto msg = make_message(LFW_NL_CMD_SET_HCF_HISTORY);
-
-    auto rows = manager.execute([](db::connection &db) {
-        sql::hcf_ipv4_history tab{};
-        return db(select(all_of(tab)).from(tab));
-    });
-
-    bool err = false;
-    struct nlattr *history = nla_nest_start(msg.get(), LFW_NLA_HCF_HISTORY);
-
     for (const auto &row : rows) {
-        auto *entry = nla_nest_start(msg.get(), LFW_NLA_HCF_HISTORY_ENTRY);
-        if (nla_put(msg.get(), LFW_NLA_HCF_HISTORY_ENTRY_IP, 4, row.ip_addr.data()) < 0 ||
-            nla_put_u8(msg.get(), LFW_NLA_HCF_HISTORY_ENTRY_HC, row.hc) < 0 ||
-            nla_put_u8(msg.get(), LFW_NLA_HCF_HISTORY_ENTRY_TTL, row.ttl) < 0) {
+        auto *entry = nla_nest_start(msg.get(), LFW_NLA_HCF_HISTORY);
+        if (nla_put(msg.get(), LFW_NLA_HCF_HISTORY_IP, 4, row.ip_addr.data()) < 0 ||
+            nla_put_u8(msg.get(), LFW_NLA_HCF_HISTORY_HC, row.hc) < 0 ||
+            nla_put_u8(msg.get(), LFW_NLA_HCF_HISTORY_TTL, row.ttl) < 0) {
             nla_nest_cancel(msg.get(), entry);
             std::cerr << "failed to pack hcf ip history\n";
-            err = true;
-            break;
+            return;
         }
         nla_nest_end(msg.get(), entry);
     }
-
-    if (err) {
-        nla_nest_cancel(msg.get(), history);
-        return;
-    }
-
-    nla_nest_end(msg.get(), history);
 
     int ret = nl_send_auto(sock.get(), msg.get());
     if (ret < 0) {
