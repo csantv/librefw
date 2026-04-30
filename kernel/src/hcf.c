@@ -270,6 +270,7 @@ int hcf_register_ip_history(struct sk_buff *skb, struct genl_info *info)
         return -ENOMEM;
     }
 
+    int new_nodes = 0, new_ips = 0;
     struct nlattr *pos = NULL;
     int rem = 0;
     nla_for_each_attr_type(pos, LFW_NLA_HCF_HISTORY, nlmsg_attrdata(info->nlhdr, GENL_HDRLEN),
@@ -279,6 +280,7 @@ int hcf_register_ip_history(struct sk_buff *skb, struct genl_info *info)
         struct nlattr *nested_pos = NULL;
 
         struct hcf_node *runner = new_tree;
+        __be32 ip_addr_be = 0;
         u32 ip_addr = 0;
         u8 ttl = 0, hc = 0;
         nla_for_each_nested(nested_pos, pos, nested_rem)
@@ -288,15 +290,17 @@ int hcf_register_ip_history(struct sk_buff *skb, struct genl_info *info)
                     int data_len = nla_len(nested_pos);
 
                     if (data_len == 4) {
-                        __be32 tmp = nla_get_in_addr(nested_pos);
-                        ip_addr = get_unaligned_be32(&tmp);
+                        ip_addr = nla_get_in_addr(nested_pos); // nested_pos comes as host byte order, this is wrong
+                        // must start saving and sending IPs as network byte
+                        // order
+                        ip_addr_be = cpu_to_be32(ip_addr);
                     }
                     break;
                 }
-                case LFW_NLA_HCF_TTL:
+                case LFW_NLA_HCF_HISTORY_TTL:
                     ttl = nla_get_u8(nested_pos);
                     break;
-                case LFW_NLA_HCF_HC:
+                case LFW_NLA_HCF_HISTORY_HC:
                     hc = nla_get_u8(nested_pos);
                     break;
                 default:
@@ -308,15 +312,19 @@ int hcf_register_ip_history(struct sk_buff *skb, struct genl_info *info)
             int bit = (ip_addr >> i) & 1;
             if (!runner->child[bit]) {
                 runner->child[bit] = hcf_create_node();
+                new_nodes++;
             }
             runner = runner->child[bit];
         }
         runner->ttl = ttl;
         runner->hc = hc;
+
+        new_ips++;
+        pr_info("librefw: inserted ip %pI4, ttl=%d, hc=%d\n", &ip_addr_be, ttl, hc);
     }
 
     hcf_swap_tree(new_tree);
-    pr_info("librefw: inserted hcf ip history\n");
+    pr_info("librefw: inserted hcf ip history, new ips=%d, new nodes=%d\n", new_ips, new_nodes);
 
     return 0;
 }
