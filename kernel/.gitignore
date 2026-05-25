@@ -2,6 +2,11 @@
 !Makefile
 !src/
 !include/
-!src/*.c
-!include/*.h
+
+!src/**/
+!include/**/
+
+!src/**/*.c
+!include/**/*.h
 !.clangd
+!.gitignore
