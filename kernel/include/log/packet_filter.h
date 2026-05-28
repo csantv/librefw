@@ -23,8 +23,10 @@
 
 struct pkt_filter_log_state;
 struct iphdr;
+struct work_struct;
 
 int init_pkt_filter_log_state(void);
 void free_pkt_filter_log_state(void);
 
 int log_pkt_filter_event(struct iphdr *iph);
+void flush_pkt_filter_events(struct work_struct *work);
