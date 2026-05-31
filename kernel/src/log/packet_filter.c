@@ -18,6 +18,7 @@
 #include <linux/percpu.h>
 #include <linux/ring_buffer.h>
 #include <linux/tcp.h>
+#include <linux/timer.h>
 #include <linux/types.h>
 #include <linux/udp.h>
 #include <linux/workqueue.h>
@@ -44,6 +45,7 @@ struct pkt_filter_event {
 };
 
 static DEFINE_PER_CPU_ALIGNED(unsigned int, packet_counter);
+static DEFINE_PER_CPU_ALIGNED(struct timer_list, packet_timer);
 static DEFINE_PER_CPU_ALIGNED(struct pkt_filter_flush_task, pkt_filter_flush_tracker);
 static struct pkt_filter_log_state *state = NULL;
 
@@ -62,11 +64,17 @@ int init_pkt_filter_log_state(void)
     }
 
     int cpu;
-    for_each_cpu(cpu, cpu_online_mask)
+    for_each_online_cpu(cpu)
     {
+        per_cpu(packet_counter, cpu) = 0;
         struct pkt_filter_flush_task *task = per_cpu_ptr(&pkt_filter_flush_tracker, cpu);
         task->cpu_id = cpu;
         INIT_WORK(&task->real_work, flush_pkt_filter_events);
+
+        struct timer_list *timer = per_cpu_ptr(&packet_timer, cpu);
+        timer_setup(timer, sched_flush_pkt_filter_events, TIMER_PINNED);
+        timer->expires = jiffies + msecs_to_jiffies(250);
+        add_timer_on(timer, cpu);
     }
 
     st->events = ring_buffer_alloc(256 * 1024, RB_FL_OVERWRITE);
@@ -91,6 +99,13 @@ void free_pkt_filter_log_state(void)
     }
     struct pkt_filter_log_state *st = state;
 
+    int cpu;
+    for_each_online_cpu(cpu)
+    {
+        struct timer_list *timer = per_cpu_ptr(&packet_timer, cpu);
+        timer_shutdown_sync(timer);
+    }
+
     if (st->workqueue) {
         destroy_workqueue(st->workqueue);
     }
@@ -101,12 +116,13 @@ void free_pkt_filter_log_state(void)
 // must only be executed in a soft-irq context
 int log_pkt_filter_event(struct iphdr *iph)
 {
-    if (unlikely(this_cpu_inc_return(packet_counter) >= 128)) {
-        this_cpu_write(packet_counter, 0);
-
+    if (unlikely(__this_cpu_inc_return(packet_counter) >= 128)) {
         // wake up workqueue to start flushing every 128 packets
         struct pkt_filter_flush_task *task = this_cpu_ptr(&pkt_filter_flush_tracker);
-        queue_work(state->workqueue, &task->real_work);
+        if (queue_work(state->workqueue, &task->real_work)) {
+            // enable requeue-ing later
+            __this_cpu_write(packet_counter, 0);
+        }
     }
 
     struct ring_buffer_event *event = ring_buffer_lock_reserve(state->events, sizeof(struct pkt_filter_event));
@@ -138,4 +154,24 @@ int log_pkt_filter_event(struct iphdr *iph)
 
 void flush_pkt_filter_events(struct work_struct *work)
 {
+    struct pkt_filter_flush_task *task = container_of(work, struct pkt_filter_flush_task, real_work);
+
+    struct ring_buffer_event *event;
+    u64 ts;
+    unsigned long lost;
+
+    while ((event = ring_buffer_consume(state->events, task->cpu_id, &ts, &lost)) != NULL) {
+        struct pkt_filter_event *entry = ring_buffer_event_data(event);
+        // TODO: send data to netlink multicast group
+    }
+}
+
+void sched_flush_pkt_filter_events(struct timer_list *timer)
+{
+    struct pkt_filter_flush_task *task = this_cpu_ptr(&pkt_filter_flush_tracker);
+    if (queue_work(state->workqueue, &task->real_work)) {
+        // enable requeue-ing later
+        __this_cpu_write(packet_counter, 0);
+    }
+    mod_timer(timer, jiffies + msecs_to_jiffies(250));
 }
