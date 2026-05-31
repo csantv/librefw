@@ -115,7 +115,7 @@ void free_pkt_filter_log_state(void)
 }
 
 // must only be executed in a soft-irq context
-int log_pkt_filter_event(struct iphdr *iph)
+int log_pkt_filter_event(struct iphdr *iph, struct sk_buff *skb)
 {
     if (unlikely(__this_cpu_inc_return(packet_counter) >= 128)) {
         // wake up workqueue to start flushing every 128 packets
@@ -136,19 +136,25 @@ int log_pkt_filter_event(struct iphdr *iph)
     entry->dest_ip = iph->daddr;
     entry->ttl = iph->ttl;
     entry->protocol = iph->protocol;
+    entry->source_port = 0;
+    entry->dest_port = 0;
 
+    int thoff = skb_network_offset(skb) + (iph->ihl * 4);
     if (iph->protocol == IPPROTO_TCP) {
-        struct tcphdr *th = (struct tcphdr *)((__u32 *)iph + iph->ihl);
-        entry->source_port = th->source;
-        entry->dest_port = th->dest;
+        struct tcphdr _tcph, *th;
+        th = skb_header_pointer(skb, thoff, sizeof(_tcph), &_tcph);
+        if (likely(th)) {
+            entry->source_port = th->source;
+            entry->dest_port = th->dest;
+        }
+    } else if (iph->protocol == IPPROTO_UDP) {
+        struct udphdr _udph, *uh;
+        uh = skb_header_pointer(skb, thoff, sizeof(_udph), &_udph);
+        if (likely(uh)) {
+            entry->source_port = uh->source;
+            entry->dest_port = uh->dest;
+        }
     }
-
-    if (iph->protocol == IPPROTO_UDP) {
-        struct udphdr *uh = (struct udphdr *)((__u32 *)iph + iph->ihl);
-        entry->source_port = uh->source;
-        entry->dest_port = uh->dest;
-    }
-
     ring_buffer_unlock_commit(state->events);
     return 0;
 }

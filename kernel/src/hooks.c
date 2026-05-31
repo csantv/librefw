@@ -101,7 +101,7 @@ unsigned int lfw_hc_learn_ipv4_hook_fn(void *priv, struct sk_buff *skb, const st
     }
 
     hcf_register_ip(get_unaligned_be32(&iph->saddr), iph->ttl);
-    // log_pkt_filter_event(iph);
+    log_pkt_filter_event(iph, skb);
 
     return NF_ACCEPT;
 }
