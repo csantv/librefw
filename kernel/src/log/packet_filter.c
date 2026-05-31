@@ -58,9 +58,14 @@ int init_pkt_filter_log_state(void)
     }
     struct pkt_filter_log_state *st = state;
 
+    st->events = ring_buffer_alloc(256 * 1024, RB_FL_OVERWRITE);
+    if (unlikely(!st->events)) {
+        goto err_free_state;
+    }
+
     st->workqueue = alloc_workqueue("lfw_pkt_filter_log", WQ_PERCPU, 1);
     if (unlikely(!st->workqueue)) {
-        goto err_free_state;
+        goto err_free_rb;
     }
 
     int cpu;
@@ -77,15 +82,11 @@ int init_pkt_filter_log_state(void)
         add_timer_on(timer, cpu);
     }
 
-    st->events = ring_buffer_alloc(256 * 1024, RB_FL_OVERWRITE);
-    if (unlikely(!st->events)) {
-        goto err_destroy_wq;
-    }
     return 0;
 
-err_destroy_wq:
-    destroy_workqueue(st->workqueue);
-    st->workqueue = NULL;
+err_free_rb:
+    ring_buffer_free(st->events);
+    st->events = NULL;
 err_free_state:
     kfree(st);
     state = NULL;

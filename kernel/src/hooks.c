@@ -2,6 +2,7 @@
 #include "bogon.h"
 #include "hcf.h"
 #include "state.h"
+#include "log/packet_filter.h"
 
 #include <linux/if_ether.h>
 #include <linux/ip.h>
@@ -100,6 +101,7 @@ unsigned int lfw_hc_learn_ipv4_hook_fn(void *priv, struct sk_buff *skb, const st
     }
 
     hcf_register_ip(get_unaligned_be32(&iph->saddr), iph->ttl);
+    // log_pkt_filter_event(iph);
 
     return NF_ACCEPT;
 }

@@ -1,12 +1,13 @@
 #include "state.h"
 #include "bogon.h"
 #include "hcf.h"
+#include "log.h"
+#include "log/packet_filter.h"
 #include "nl.h"
 #include "nl_ops.h"
-#include "log.h"
 
-#include <linux/rcupdate.h>
 #include <linux/netdevice.h>
+#include <linux/rcupdate.h>
 #include <linux/spinlock.h>
 #include <net/genetlink.h>
 
@@ -40,8 +41,15 @@ int lfw_init_state(void)
     if (ret < 0) {
         goto err_free_bg;
     }
+
+    ret = init_pkt_filter_log_state();
+    if (ret < 0) {
+        goto err_free_hcf;
+    }
     return 0;
 
+err_free_hcf:
+    hcf_free_state();
 err_free_bg:
     lfw_free_bg_state();
 err_nl_destroy:
@@ -53,9 +61,10 @@ err_free_state:
 
 void lfw_free_state(void)
 {
-    lfw_nl_destroy();
-    lfw_free_bg_state();
+    free_pkt_filter_log_state();
     hcf_free_state();
+    lfw_free_bg_state();
+    lfw_nl_destroy();
     kfree(state);
 }
 
