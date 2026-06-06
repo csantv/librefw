@@ -85,7 +85,7 @@ int init_pkt_filter_log_state(void)
 
         struct timer_list *timer = per_cpu_ptr(&packet_timer, cpu);
         timer_setup(timer, sched_flush_pkt_filter_events, TIMER_PINNED);
-        timer->expires = jiffies + secs_to_jiffies(5);
+        timer->expires = jiffies + secs_to_jiffies(60);
         add_timer_on(timer, cpu);
     }
 
@@ -172,32 +172,43 @@ void flush_pkt_filter_events(struct work_struct *work)
     struct pkt_filter_flush_task *task = container_of(work, struct pkt_filter_flush_task, real_work);
     struct buffer_data_read_page *rpage = ring_buffer_alloc_read_page(state->events, task->cpu_id);
 
+    int data_offset = -1;
+    int num_pages = 0;
     int page_size = ring_buffer_subbuf_size_get(state->events);
-    while (true) {
-        int ret = ring_buffer_read_page(state->events, rpage, page_size, task->cpu_id, task->flush_incomplete);
-        if (ret < 0) {
-            break;
+    do {
+        data_offset = ring_buffer_read_page(state->events, rpage, page_size, task->cpu_id, task->flush_incomplete);
+        if (data_offset >= 0) {
+            process_rb_page(ring_buffer_read_page_data(rpage), data_offset, page_size);
+            num_pages++;
         }
-        process_rb_page(ring_buffer_read_page_data(rpage), ret);
-    }
+    } while (data_offset >= 0);
     ring_buffer_free_read_page(state->events, task->cpu_id, rpage);
+    pr_info_ratelimited("librefw: finished processing %d pages in rb on cpu %d\n", num_pages, task->cpu_id);
 }
 
-void process_rb_page(void *data, int data_len)
+void process_rb_page(void *data, int data_offset, int data_len)
 {
+    pr_info_ratelimited("librefw: processing %d bytes in ring buffer\n", data_len);
     int bytes_read = 0;
     while (bytes_read < data_len) {
-        struct ring_buffer_event *event = data + bytes_read;
-        if (event->type_len == RINGBUF_TYPE_PADDING) {
+        struct ring_buffer_event *event = data + bytes_read + data_offset;
+        int event_len = ring_buffer_event_length(event);
+
+        if (event_len <= 0) {
             break;
         }
 
-        int event_len = ring_buffer_event_length(event);
-        if (event_len <= 0 || bytes_read + event_len > data_len) {
-            break;
+        if (event->type_len > RINGBUF_TYPE_DATA_TYPE_LEN_MAX) {
+            if (!event->time_delta) {
+                break;
+            }
+            bytes_read += event_len;
+            continue;
         }
 
         struct pkt_filter_event *entry = ring_buffer_event_data(event);
+        pr_info("librefw: received packet from ip %pI4, port %d, type_len=%d, event_len=%d\n", &entry->source_ip,
+                entry->source_port, event->type_len, event_len);
         bytes_read += ring_buffer_event_length(event);
     }
     /*struct ring_buffer_event *event;
@@ -217,5 +228,6 @@ void sched_flush_pkt_filter_events(struct timer_list *timer)
         // enable requeue-ing later
         __this_cpu_write(packet_counter, 0);
     }
-    mod_timer(timer, jiffies + msecs_to_jiffies(250));
+    // mod_timer(timer, jiffies + msecs_to_jiffies(250));
+    mod_timer(timer, jiffies + secs_to_jiffies(60));
 }
