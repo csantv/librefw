@@ -33,6 +33,7 @@ struct pkt_filter_log_state {
 struct pkt_filter_flush_task {
     struct work_struct real_work;
     int cpu_id;
+    int flush_incomplete;
 };
 
 struct pkt_filter_event {
@@ -42,6 +43,11 @@ struct pkt_filter_event {
     __be16 dest_port;
     u8 protocol;
     u8 ttl;
+};
+
+struct pkt_filter_flush_ctx {
+    void *data;
+    int data_len;
 };
 
 static DEFINE_PER_CPU_ALIGNED(unsigned int, packet_counter);
@@ -74,11 +80,12 @@ int init_pkt_filter_log_state(void)
         per_cpu(packet_counter, cpu) = 0;
         struct pkt_filter_flush_task *task = per_cpu_ptr(&pkt_filter_flush_tracker, cpu);
         task->cpu_id = cpu;
+        task->flush_incomplete = 0;
         INIT_WORK(&task->real_work, flush_pkt_filter_events);
 
         struct timer_list *timer = per_cpu_ptr(&packet_timer, cpu);
         timer_setup(timer, sched_flush_pkt_filter_events, TIMER_PINNED);
-        timer->expires = jiffies + msecs_to_jiffies(250);
+        timer->expires = jiffies + secs_to_jiffies(5);
         add_timer_on(timer, cpu);
     }
 
@@ -120,6 +127,7 @@ int log_pkt_filter_event(struct iphdr *iph, struct sk_buff *skb)
     if (unlikely(__this_cpu_inc_return(packet_counter) >= 128)) {
         // wake up workqueue to start flushing every 128 packets
         struct pkt_filter_flush_task *task = this_cpu_ptr(&pkt_filter_flush_tracker);
+        task->flush_incomplete = 0;
         if (queue_work(state->workqueue, &task->real_work)) {
             // enable requeue-ing later
             __this_cpu_write(packet_counter, 0);
@@ -162,20 +170,49 @@ int log_pkt_filter_event(struct iphdr *iph, struct sk_buff *skb)
 void flush_pkt_filter_events(struct work_struct *work)
 {
     struct pkt_filter_flush_task *task = container_of(work, struct pkt_filter_flush_task, real_work);
+    struct buffer_data_read_page *rpage = ring_buffer_alloc_read_page(state->events, task->cpu_id);
 
-    struct ring_buffer_event *event;
+    int page_size = ring_buffer_subbuf_size_get(state->events);
+    while (true) {
+        int ret = ring_buffer_read_page(state->events, rpage, page_size, task->cpu_id, task->flush_incomplete);
+        if (ret < 0) {
+            break;
+        }
+        process_rb_page(ring_buffer_read_page_data(rpage), ret);
+    }
+    ring_buffer_free_read_page(state->events, task->cpu_id, rpage);
+}
+
+void process_rb_page(void *data, int data_len)
+{
+    int bytes_read = 0;
+    while (bytes_read < data_len) {
+        struct ring_buffer_event *event = data + bytes_read;
+        if (event->type_len == RINGBUF_TYPE_PADDING) {
+            break;
+        }
+
+        int event_len = ring_buffer_event_length(event);
+        if (event_len <= 0 || bytes_read + event_len > data_len) {
+            break;
+        }
+
+        struct pkt_filter_event *entry = ring_buffer_event_data(event);
+        bytes_read += ring_buffer_event_length(event);
+    }
+    /*struct ring_buffer_event *event;
     u64 ts;
     unsigned long lost;
-
     while ((event = ring_buffer_consume(state->events, task->cpu_id, &ts, &lost)) != NULL) {
         struct pkt_filter_event *entry = ring_buffer_event_data(event);
         // TODO: send data to netlink multicast group
-    }
+    }*/
 }
 
 void sched_flush_pkt_filter_events(struct timer_list *timer)
 {
     struct pkt_filter_flush_task *task = this_cpu_ptr(&pkt_filter_flush_tracker);
+    task->flush_incomplete = 1;
     if (queue_work(state->workqueue, &task->real_work)) {
         // enable requeue-ing later
         __this_cpu_write(packet_counter, 0);
