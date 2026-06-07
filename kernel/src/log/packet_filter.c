@@ -25,6 +25,8 @@
 
 #include "log/packet_filter.h"
 
+#define RINGBUF_TYPE_DATA 0 ... RINGBUF_TYPE_DATA_TYPE_LEN_MAX
+
 struct pkt_filter_log_state {
     struct trace_buffer *events;
     struct workqueue_struct *workqueue;
@@ -43,7 +45,8 @@ struct pkt_filter_event {
     __be16 dest_port;
     u8 protocol;
     u8 ttl;
-};
+    u8 reserved[2];
+} __packed;
 
 struct pkt_filter_flush_ctx {
     void *data;
@@ -188,36 +191,44 @@ void flush_pkt_filter_events(struct work_struct *work)
 
 void process_rb_page(void *data, int data_offset, int data_len)
 {
-    pr_info_ratelimited("librefw: processing %d bytes in ring buffer\n", data_len);
-    int bytes_read = 0;
-    while (bytes_read < data_len) {
-        struct ring_buffer_event *event = data + bytes_read + data_offset;
-        int event_len = ring_buffer_event_length(event);
+    char *page_start = data + data_offset;
 
-        if (event_len <= 0) {
+    int event_len = 0;
+    for (int bytes_read = 0; bytes_read < data_len; bytes_read += event_len) {
+        struct ring_buffer_event *event = (struct ring_buffer_event *)(page_start + bytes_read);
+        event_len = ring_buffer_event_length(event);
+
+        if (event_len <= 0 || (bytes_read + event_len) > data_len) {
+            pr_info("librefw: oh no, event_len <= 0, is %d, type_len=%d\n", event_len, event->type_len);
             break;
         }
 
-        if (event->type_len > RINGBUF_TYPE_DATA_TYPE_LEN_MAX) {
-            if (!event->time_delta) {
+        switch (event->type_len) {
+            case RINGBUF_TYPE_PADDING: {
+                pr_info("librefw: found padding while parsing, stopping now\n");
+                return;
+            }
+
+            case RINGBUF_TYPE_TIME_EXTEND:
+                fallthrough;
+            case RINGBUF_TYPE_TIME_STAMP: {
+                pr_info("librefw: found timestamps while parsing, continuing\n");
+                continue;
+            }
+
+            case RINGBUF_TYPE_DATA: {
+                struct pkt_filter_event *entry = ring_buffer_event_data(event);
+                if (likely(entry)) {
+                    pr_info("librefw: received packet from ip %pI4, port %d, type_len=%d, event_len=%d, data_len=%d, "
+                            "data_offset=%d\n",
+                            &entry->source_ip, entry->source_port, event->type_len, event_len, data_len, data_offset);
+                }
                 break;
             }
-            bytes_read += event_len;
-            continue;
+            default:
+                WARN_ON_ONCE(1);
         }
-
-        struct pkt_filter_event *entry = ring_buffer_event_data(event);
-        pr_info("librefw: received packet from ip %pI4, port %d, type_len=%d, event_len=%d\n", &entry->source_ip,
-                entry->source_port, event->type_len, event_len);
-        bytes_read += ring_buffer_event_length(event);
     }
-    /*struct ring_buffer_event *event;
-    u64 ts;
-    unsigned long lost;
-    while ((event = ring_buffer_consume(state->events, task->cpu_id, &ts, &lost)) != NULL) {
-        struct pkt_filter_event *entry = ring_buffer_event_data(event);
-        // TODO: send data to netlink multicast group
-    }*/
 }
 
 void sched_flush_pkt_filter_events(struct timer_list *timer)
