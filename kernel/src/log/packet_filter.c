@@ -35,7 +35,8 @@ struct pkt_filter_log_state {
 struct pkt_filter_flush_task {
     struct work_struct real_work;
     int cpu_id;
-    int flush_incomplete;
+    int full_pages_only;
+    struct buffer_data_read_page *rpage;
 };
 
 struct pkt_filter_event {
@@ -46,7 +47,7 @@ struct pkt_filter_event {
     u8 protocol;
     u8 ttl;
     u8 reserved[2];
-} __packed;
+} __packed __aligned(4);
 
 struct pkt_filter_flush_ctx {
     void *data;
@@ -83,7 +84,8 @@ int init_pkt_filter_log_state(void)
         per_cpu(packet_counter, cpu) = 0;
         struct pkt_filter_flush_task *task = per_cpu_ptr(&pkt_filter_flush_tracker, cpu);
         task->cpu_id = cpu;
-        task->flush_incomplete = 0;
+        task->full_pages_only = 1;
+        task->rpage = ring_buffer_alloc_read_page(st->events, cpu);
         INIT_WORK(&task->real_work, flush_pkt_filter_events);
 
         struct timer_list *timer = per_cpu_ptr(&packet_timer, cpu);
@@ -117,6 +119,12 @@ void free_pkt_filter_log_state(void)
         timer_shutdown_sync(timer);
     }
 
+    for_each_online_cpu(cpu)
+    {
+        struct pkt_filter_flush_task *task = per_cpu_ptr(&pkt_filter_flush_tracker, cpu);
+        ring_buffer_free_read_page(st->events, cpu, task->rpage);
+    }
+
     if (st->workqueue) {
         destroy_workqueue(st->workqueue);
     }
@@ -127,10 +135,10 @@ void free_pkt_filter_log_state(void)
 // must only be executed in a soft-irq context
 int log_pkt_filter_event(struct iphdr *iph, struct sk_buff *skb)
 {
-    if (unlikely(__this_cpu_inc_return(packet_counter) >= 128)) {
-        // wake up workqueue to start flushing every 128 packets
+    if (unlikely(__this_cpu_inc_return(packet_counter) >= 200)) {
+        // wake up workqueue to start flushing every 256 packets
         struct pkt_filter_flush_task *task = this_cpu_ptr(&pkt_filter_flush_tracker);
-        task->flush_incomplete = 0;
+        task->full_pages_only = 1;
         if (queue_work(state->workqueue, &task->real_work)) {
             // enable requeue-ing later
             __this_cpu_write(packet_counter, 0);
@@ -173,60 +181,68 @@ int log_pkt_filter_event(struct iphdr *iph, struct sk_buff *skb)
 void flush_pkt_filter_events(struct work_struct *work)
 {
     struct pkt_filter_flush_task *task = container_of(work, struct pkt_filter_flush_task, real_work);
-    struct buffer_data_read_page *rpage = ring_buffer_alloc_read_page(state->events, task->cpu_id);
 
     int data_offset = -1;
-    int num_pages = 0;
+    // int num_pages = 0;
     int page_size = ring_buffer_subbuf_size_get(state->events);
     do {
-        data_offset = ring_buffer_read_page(state->events, rpage, page_size, task->cpu_id, task->flush_incomplete);
+        data_offset = ring_buffer_read_page(state->events, task->rpage, page_size, task->cpu_id, task->full_pages_only);
         if (data_offset >= 0) {
-            process_rb_page(ring_buffer_read_page_data(rpage), data_offset, page_size);
-            num_pages++;
+            pr_info("librefw: processing rb page on cpu %d, offset=%d, page_size=%d, flush_incomplete=%d\n",
+                    task->cpu_id, data_offset, page_size, task->full_pages_only);
+            process_rb_page(ring_buffer_read_page_data(task->rpage), data_offset, page_size);
+            // num_pages++;
         }
     } while (data_offset >= 0);
-    ring_buffer_free_read_page(state->events, task->cpu_id, rpage);
-    pr_info_ratelimited("librefw: finished processing %d pages in rb on cpu %d\n", num_pages, task->cpu_id);
+    // pr_info_ratelimited("librefw: finished processing %d pages in rb on cpu %d\n", num_pages, task->cpu_id);
 }
 
 void process_rb_page(void *data, int data_offset, int data_len)
 {
-    char *page_start = data + data_offset;
+    char *page_start = (char *)data + data_offset;
 
     int event_len = 0;
-    for (int bytes_read = 0; bytes_read < data_len; bytes_read += event_len) {
+    for (int bytes_read = 16; bytes_read < data_len; bytes_read += event_len) {
         struct ring_buffer_event *event = (struct ring_buffer_event *)(page_start + bytes_read);
         event_len = ring_buffer_event_length(event);
 
-        if (event_len <= 0 || (bytes_read + event_len) > data_len) {
-            pr_info("librefw: oh no, event_len <= 0, is %d, type_len=%d\n", event_len, event->type_len);
+        // we hit null data
+        if (event_len == 0 && event->type_len == 0) {
+            pr_info_ratelimited("librefw: finished parsing rb page, bytes_read=%d\n", bytes_read);
             break;
         }
 
         switch (event->type_len) {
             case RINGBUF_TYPE_PADDING: {
-                pr_info("librefw: found padding while parsing, stopping now\n");
-                return;
+                pr_info("librefw: found padding while parsing, stopping now, type_len=%d, bytes_read=%d\n",
+                        event->type_len, bytes_read);
+                break;
             }
 
             case RINGBUF_TYPE_TIME_EXTEND:
                 fallthrough;
             case RINGBUF_TYPE_TIME_STAMP: {
-                pr_info("librefw: found timestamps while parsing, continuing\n");
+                event_len = 8;
                 continue;
             }
 
             case RINGBUF_TYPE_DATA: {
                 struct pkt_filter_event *entry = ring_buffer_event_data(event);
                 if (likely(entry)) {
-                    pr_info("librefw: received packet from ip %pI4, port %d, type_len=%d, event_len=%d, data_len=%d, "
-                            "data_offset=%d\n",
-                            &entry->source_ip, entry->source_port, event->type_len, event_len, data_len, data_offset);
+                    pr_info_ratelimited("librefw: received packet from ip %pI4, port %d, type_len=%d, event_len=%d\n",
+                                        &entry->source_ip, entry->source_port, event->type_len, event_len);
                 }
+                event_len += 4;
                 break;
             }
             default:
                 WARN_ON_ONCE(1);
+        }
+
+        if (event_len <= 0 || (bytes_read + event_len) > data_len) {
+            pr_info("librefw: oh no, event_len <= 0, is %d, type_len=%d, bytes_read=%d\n", event_len, event->type_len,
+                    bytes_read);
+            break;
         }
     }
 }
@@ -234,7 +250,7 @@ void process_rb_page(void *data, int data_offset, int data_len)
 void sched_flush_pkt_filter_events(struct timer_list *timer)
 {
     struct pkt_filter_flush_task *task = this_cpu_ptr(&pkt_filter_flush_tracker);
-    task->flush_incomplete = 1;
+    task->full_pages_only = 0;
     if (queue_work(state->workqueue, &task->real_work)) {
         // enable requeue-ing later
         __this_cpu_write(packet_counter, 0);
