@@ -1,5 +1,5 @@
 obj-m += librefw.o
-librefw-objs := src/mod.o src/hooks.o src/state.o src/bogon.o src/utils.o src/nl.o src/hcf.o src/log.o src/log/packet_filter.o
+librefw-objs := src/mod.o src/hooks.o src/state.o src/bogon.o src/utils.o src/nl.o src/hcf.o src/log.o src/log/packet_filter.o src/util/ring_buffer.o
 
 ccflags-y += -I$(src)/include
 

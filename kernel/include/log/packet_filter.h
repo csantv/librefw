@@ -26,6 +26,7 @@ struct iphdr;
 struct sk_buff;
 struct work_struct;
 struct timer_list;
+struct buffer_data_page;
 
 int init_pkt_filter_log_state(void);
 void free_pkt_filter_log_state(void);
@@ -33,4 +34,4 @@ void free_pkt_filter_log_state(void);
 int log_pkt_filter_event(struct iphdr *iph, struct sk_buff *skb);
 void flush_pkt_filter_events(struct work_struct *work);
 void sched_flush_pkt_filter_events(struct timer_list *timer);
-void process_rb_page(void *data, int data_offset, int data_len);
+void process_rb_page(struct buffer_data_page *data, int data_offset, int data_len);

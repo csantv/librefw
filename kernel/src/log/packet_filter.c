@@ -16,7 +16,6 @@
 
 #include <linux/ip.h>
 #include <linux/percpu.h>
-#include <linux/ring_buffer.h>
 #include <linux/tcp.h>
 #include <linux/timer.h>
 #include <linux/types.h>
@@ -24,8 +23,7 @@
 #include <linux/workqueue.h>
 
 #include "log/packet_filter.h"
-
-#define RINGBUF_TYPE_DATA 0 ... RINGBUF_TYPE_DATA_TYPE_LEN_MAX
+#include "util/ring_buffer.h"
 
 struct pkt_filter_log_state {
     struct trace_buffer *events;
@@ -46,8 +44,7 @@ struct pkt_filter_event {
     __be16 dest_port;
     u8 protocol;
     u8 ttl;
-    u8 reserved[2];
-} __packed __aligned(4);
+} __packed RB_ALIGN_DATA;
 
 struct pkt_filter_flush_ctx {
     void *data;
@@ -136,7 +133,7 @@ void free_pkt_filter_log_state(void)
 int log_pkt_filter_event(struct iphdr *iph, struct sk_buff *skb)
 {
     if (unlikely(__this_cpu_inc_return(packet_counter) >= 200)) {
-        // wake up workqueue to start flushing every 256 packets
+        // wake up workqueue to start flushing every 200 packets
         struct pkt_filter_flush_task *task = this_cpu_ptr(&pkt_filter_flush_tracker);
         task->full_pages_only = 1;
         if (queue_work(state->workqueue, &task->real_work)) {
@@ -178,6 +175,9 @@ int log_pkt_filter_event(struct iphdr *iph, struct sk_buff *skb)
     return 0;
 }
 
+/**
+ * Flush 200 packets at a time
+ */
 void flush_pkt_filter_events(struct work_struct *work)
 {
     struct pkt_filter_flush_task *task = container_of(work, struct pkt_filter_flush_task, real_work);
@@ -197,8 +197,10 @@ void flush_pkt_filter_events(struct work_struct *work)
     // pr_info_ratelimited("librefw: finished processing %d pages in rb on cpu %d\n", num_pages, task->cpu_id);
 }
 
-void process_rb_page(void *data, int data_offset, int data_len)
+void process_rb_page(struct buffer_data_page *data, int data_offset, int data_len)
 {
+    pr_info("librefw: procesing page with ts %llu and idx %ld\n", data->time_stamp, local_read(&data->commit));
+    /*
     char *page_start = (char *)data + data_offset;
 
     int event_len = 0;
@@ -228,9 +230,11 @@ void process_rb_page(void *data, int data_offset, int data_len)
 
             case RINGBUF_TYPE_DATA: {
                 struct pkt_filter_event *entry = ring_buffer_event_data(event);
+                u64 timestamp = rb_event_time_stamp(event);
                 if (likely(entry)) {
-                    pr_info_ratelimited("librefw: received packet from ip %pI4, port %d, type_len=%d, event_len=%d\n",
-                                        &entry->source_ip, entry->source_port, event->type_len, event_len);
+                    pr_info_ratelimited(
+                        "librefw: received packet from ip %pI4, port %d, type_len=%d, event_len=%d, ts=%llu\n",
+                        &entry->source_ip, entry->source_port, event->type_len, event_len, timestamp);
                 }
                 event_len += 4;
                 break;
@@ -244,7 +248,7 @@ void process_rb_page(void *data, int data_offset, int data_len)
                     bytes_read);
             break;
         }
-    }
+    }*/
 }
 
 void sched_flush_pkt_filter_events(struct timer_list *timer)
