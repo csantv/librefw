@@ -34,4 +34,5 @@ void free_pkt_filter_log_state(void);
 int log_pkt_filter_event(struct iphdr *iph, struct sk_buff *skb);
 void flush_pkt_filter_events(struct work_struct *work);
 void sched_flush_pkt_filter_events(struct timer_list *timer);
-void process_rb_page(struct buffer_data_page *data, int data_offset, int data_len);
+//void process_rb_page(struct buffer_data_page *bpage, int data_offset);
+int process_rb_page(struct sk_buff *skb, void *data);

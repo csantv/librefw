@@ -22,6 +22,7 @@
 #include <linux/udp.h>
 #include <linux/workqueue.h>
 
+#include "nl.h"
 #include "log/packet_filter.h"
 #include "util/ring_buffer.h"
 
@@ -47,8 +48,8 @@ struct pkt_filter_event {
 } __packed RB_ALIGN_DATA;
 
 struct pkt_filter_flush_ctx {
-    void *data;
-    int data_len;
+    struct buffer_data_page *bpage;
+    int data_offset;
 };
 
 static DEFINE_PER_CPU_ALIGNED(unsigned int, packet_counter);
@@ -175,80 +176,56 @@ int log_pkt_filter_event(struct iphdr *iph, struct sk_buff *skb)
     return 0;
 }
 
-/**
- * Flush 200 packets at a time
- */
 void flush_pkt_filter_events(struct work_struct *work)
 {
     struct pkt_filter_flush_task *task = container_of(work, struct pkt_filter_flush_task, real_work);
 
     int data_offset = -1;
-    // int num_pages = 0;
     int page_size = ring_buffer_subbuf_size_get(state->events);
     do {
         data_offset = ring_buffer_read_page(state->events, task->rpage, page_size, task->cpu_id, task->full_pages_only);
         if (data_offset >= 0) {
-            pr_info("librefw: processing rb page on cpu %d, offset=%d, page_size=%d, flush_incomplete=%d\n",
-                    task->cpu_id, data_offset, page_size, task->full_pages_only);
-            process_rb_page(ring_buffer_read_page_data(task->rpage), data_offset, page_size);
-            // num_pages++;
+            struct pkt_filter_flush_ctx ctx = {ring_buffer_read_page_data(task->rpage), data_offset};
+            // lfw_make_multicast_msg(0, 0, &ctx, process_rb_page);
         }
     } while (data_offset >= 0);
-    // pr_info_ratelimited("librefw: finished processing %d pages in rb on cpu %d\n", num_pages, task->cpu_id);
 }
 
-void process_rb_page(struct buffer_data_page *data, int data_offset, int data_len)
+// based from dump_buffer_page
+int process_rb_page(struct sk_buff *skb, void *data)
 {
-    pr_info("librefw: procesing page with ts %llu and idx %ld\n", data->time_stamp, local_read(&data->commit));
-    /*
-    char *page_start = (char *)data + data_offset;
-
-    int event_len = 0;
-    for (int bytes_read = 16; bytes_read < data_len; bytes_read += event_len) {
-        struct ring_buffer_event *event = (struct ring_buffer_event *)(page_start + bytes_read);
-        event_len = ring_buffer_event_length(event);
-
-        // we hit null data
-        if (event_len == 0 && event->type_len == 0) {
-            pr_info_ratelimited("librefw: finished parsing rb page, bytes_read=%d\n", bytes_read);
-            break;
-        }
+    struct pkt_filter_flush_ctx *ctx = data;
+    u64 ts = ctx->bpage->time_stamp, delta;
+    unsigned char *page_start = ctx->bpage->data + ctx->data_offset;
+    long bytes_commited = local_read(&ctx->bpage->commit);
+    struct ring_buffer_event *event;
+    for (long bytes_read = 0; bytes_read < bytes_commited; bytes_read += rb_event_length(event)) {
+        event = (struct ring_buffer_event *)(page_start + bytes_read);
 
         switch (event->type_len) {
-            case RINGBUF_TYPE_PADDING: {
-                pr_info("librefw: found padding while parsing, stopping now, type_len=%d, bytes_read=%d\n",
-                        event->type_len, bytes_read);
+            case RINGBUF_TYPE_PADDING:
+                ts += event->time_delta;
                 break;
-            }
 
             case RINGBUF_TYPE_TIME_EXTEND:
-                fallthrough;
-            case RINGBUF_TYPE_TIME_STAMP: {
-                event_len = 8;
-                continue;
-            }
+                delta = rb_event_time_stamp(event);
+                ts += delta;
+                break;
+
+            case RINGBUF_TYPE_TIME_STAMP:
+                delta = rb_event_time_stamp(event);
+                ts = rb_fix_abs_ts(delta, ts);
+                break;
 
             case RINGBUF_TYPE_DATA: {
+                ts += event->time_delta;
                 struct pkt_filter_event *entry = ring_buffer_event_data(event);
-                u64 timestamp = rb_event_time_stamp(event);
-                if (likely(entry)) {
-                    pr_info_ratelimited(
-                        "librefw: received packet from ip %pI4, port %d, type_len=%d, event_len=%d, ts=%llu\n",
-                        &entry->source_ip, entry->source_port, event->type_len, event_len, timestamp);
-                }
-                event_len += 4;
                 break;
             }
             default:
                 WARN_ON_ONCE(1);
         }
-
-        if (event_len <= 0 || (bytes_read + event_len) > data_len) {
-            pr_info("librefw: oh no, event_len <= 0, is %d, type_len=%d, bytes_read=%d\n", event_len, event->type_len,
-                    bytes_read);
-            break;
-        }
-    }*/
+    }
 }
 
 void sched_flush_pkt_filter_events(struct timer_list *timer)
@@ -259,6 +236,5 @@ void sched_flush_pkt_filter_events(struct timer_list *timer)
         // enable requeue-ing later
         __this_cpu_write(packet_counter, 0);
     }
-    // mod_timer(timer, jiffies + msecs_to_jiffies(250));
     mod_timer(timer, jiffies + secs_to_jiffies(60));
 }
