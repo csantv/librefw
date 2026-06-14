@@ -1,5 +1,11 @@
-#ifndef LFW_STATE
-#define LFW_STATE
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * librefw: a free as in freedom firewall
+ * 
+ * Copyright (C) 2026 Carlos Santos Toro Vera
+ */
+
+#pragma once
 
 #include <linux/types.h>
 
@@ -21,4 +27,3 @@ bool lfw_state_is_under_attack(void);
 int lfw_state_set_under_attack(bool new_value);
 int lfw_state_set_under_attack_nl(struct sk_buff *skb, struct genl_info *info);
 
-#endif

@@ -1,9 +1,14 @@
-#ifndef LFW_UTILS
-#define LFW_UTILS
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * librefw: a free as in freedom firewall
+ * 
+ * Copyright (C) 2026 Carlos Santos Toro Vera
+ */
+
+#pragma once
 
 #include <linux/types.h>
 
 int in4_get_bit(u32 ip, u32 bit_index);
 u32 in4_get_masked(u32 ip, int prefix_len);
 
-#endif

@@ -1,4 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Generic ring buffer
+ *
+ * Copyright (C) 2008 Steven Rostedt <srostedt@redhat.com>
+ */
+
 // bunch of stuff copied over from source/kernel/trace/ring_buffer.c
+
+#pragma once
 
 #include <asm/local.h>
 #include <linux/ring_buffer.h>

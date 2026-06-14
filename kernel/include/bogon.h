@@ -1,5 +1,11 @@
-#ifndef LFW_BOGON_H
-#define LFW_BOGON_H
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * librefw: a free as in freedom firewall
+ * 
+ * Copyright (C) 2026 Carlos Santos Toro Vera
+ */
+
+#pragma once
 
 #include <linux/types.h>
 
@@ -38,5 +44,3 @@ void lfw_load_bg_tree(struct lfw_ip_prefix *prefixes, u32 len);
 int lfw_lookup_bg_tree(u32 ip);
 
 int lfw_bogon_set(struct sk_buff *skb, struct genl_info *info);
-
-#endif
