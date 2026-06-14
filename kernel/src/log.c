@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * librefw: a free as in freedom firewall
+ * 
+ * Copyright (C) 2026 Carlos Santos Toro Vera
+ */
+
 #include "log.h"
 #include "nl.h"
 #include "nl_ops.h"

@@ -217,6 +217,7 @@ int process_rb_page(struct sk_buff *skb, void *data)
                 WARN_ON_ONCE(1);
         }
     }
+    return 0;
 }
 
 void sched_flush_pkt_filter_events(struct timer_list *timer)

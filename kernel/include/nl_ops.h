@@ -1,6 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0-only
+// SPDX-License-Identifier: GPL-2.0-only OR GPL-3.0-or-later
 /*
  * librefw: a free as in freedom firewall
+ * shared netlink interface enums and defines
  * 
  * Copyright (C) 2026 Carlos Santos Toro Vera
  */
