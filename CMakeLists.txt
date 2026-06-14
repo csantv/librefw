@@ -35,6 +35,7 @@ target_sources(librefw PRIVATE
     src/nl/base.cpp
     src/nl/command.cpp
     src/nl/hcf.cpp
+    src/nl/packet_filter_log.cpp
     src/db/manager.cpp
 )
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * librefw: a free as in freedom firewall
- * 
+ *
  * Copyright (C) 2026 Carlos Santos Toro Vera
  */
 
@@ -12,9 +12,11 @@
 #include <linux/types.h>
 #include <linux/udp.h>
 #include <linux/workqueue.h>
+#include <net/genetlink.h>
 
-#include "nl.h"
 #include "log/packet_filter.h"
+#include "nl.h"
+#include "nl_ops.h"
 #include "util/ring_buffer.h"
 
 struct pkt_filter_log_state {
@@ -171,15 +173,19 @@ void flush_pkt_filter_events(struct work_struct *work)
 {
     struct pkt_filter_flush_task *task = container_of(work, struct pkt_filter_flush_task, real_work);
 
-    int data_offset = -1;
     int page_size = ring_buffer_subbuf_size_get(state->events);
-    do {
-        data_offset = ring_buffer_read_page(state->events, task->rpage, page_size, task->cpu_id, task->full_pages_only);
-        if (data_offset >= 0) {
-            struct pkt_filter_flush_ctx ctx = {ring_buffer_read_page_data(task->rpage), data_offset};
-            // lfw_make_multicast_msg(0, 0, &ctx, process_rb_page);
+    while (true) {
+        int offset = ring_buffer_read_page(state->events, task->rpage, page_size, task->cpu_id, task->full_pages_only);
+        if (offset < 0) {
+            break;
         }
-    } while (data_offset >= 0);
+        struct pkt_filter_flush_ctx ctx = {ring_buffer_read_page_data(task->rpage), offset};
+        int rc = lfw_make_multicast_msg(LFW_NL_GROUP_PKT_FILTER_LOG, LFW_NL_CMD_PKT_FILTER_LOG, &ctx, process_rb_page,
+                                        8 * 1024);
+        if (rc < 0) {
+            pr_err("librefw: could not broadcast pkt filter message: %d\n", rc);
+        }
+    }
 }
 
 // based from dump_buffer_page
@@ -190,6 +196,7 @@ int process_rb_page(struct sk_buff *skb, void *data)
     unsigned char *page_start = ctx->bpage->data + ctx->data_offset;
     long bytes_commited = local_read(&ctx->bpage->commit);
     struct ring_buffer_event *event;
+
     for (long bytes_read = 0; bytes_read < bytes_commited; bytes_read += rb_event_length(event)) {
         event = (struct ring_buffer_event *)(page_start + bytes_read);
 
@@ -211,13 +218,34 @@ int process_rb_page(struct sk_buff *skb, void *data)
             case RINGBUF_TYPE_DATA: {
                 ts += event->time_delta;
                 struct pkt_filter_event *entry = ring_buffer_event_data(event);
+                struct nlattr *container = nla_nest_start(skb, LFW_NLA_PKT_FILTER_LOG);
+                if (unlikely(!container)) {
+                    goto nla_failure;
+                }
+                if (nla_put_u64_64bit(skb, LFW_NLA_PKT_FILTER_LOG_TS, ts, LFW_NLA_UNSPEC) < 0 ||
+                    nla_put_be32(skb, LFW_NLA_PKT_FILTER_LOG_SRC_IP, entry->source_ip) < 0 ||
+                    nla_put_be32(skb, LFW_NLA_PKT_FILTER_LOG_DEST_IP, entry->dest_ip) < 0 ||
+                    nla_put_be16(skb, LFW_NLA_PKT_FILTER_LOG_SRC_PORT, entry->source_port) < 0 ||
+                    nla_put_be16(skb, LFW_NLA_PKT_FILTER_LOG_DEST_PORT, entry->dest_port) < 0 ||
+                    nla_put_u8(skb, LFW_NLA_PKT_FILTER_LOG_PROTO, entry->protocol) < 0 ||
+                    nla_put_u8(skb, LFW_NLA_PKT_FILTER_LOG_TTL, entry->ttl) < 0) {
+                    pr_err("librefw: failed to nest nla attributes in pkt filter log message\n");
+                    nla_nest_cancel(skb, container);
+                }
+                nla_nest_end(skb, container);
                 break;
             }
+
             default:
                 WARN_ON_ONCE(1);
         }
     }
+
     return 0;
+
+nla_failure:
+    pr_err("librefw: failed to build netlink pkt filter log message\n");
+    return -EMSGSIZE;
 }
 
 void sched_flush_pkt_filter_events(struct timer_list *timer)

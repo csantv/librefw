@@ -253,7 +253,7 @@ void hcf_register_ip(u32 source_ip, u8 ttl)
 int hcf_log_new_ip(u32 source_ip, u8 ttl, u8 hc)
 {
     struct hcf_ip_ctx ctx = {source_ip, ttl, hc};
-    return lfw_make_multicast_msg(LFW_NL_GROUP_HCF, LFW_NL_CMD_HCF, &ctx, hcf_build_log_msg);
+    return lfw_make_multicast_msg(LFW_NL_GROUP_HCF, LFW_NL_CMD_HCF, &ctx, hcf_build_log_msg, NLMSG_GOODSIZE);
 }
 
 int hcf_build_log_msg(struct sk_buff *skb, void *data)

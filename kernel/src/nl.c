@@ -25,11 +25,23 @@ static struct nla_policy hcf_ip_history_pol[] = {
     [LFW_NLA_HCF_HISTORY_TTL] = { .type = NLA_U8 },
 };
 
+static struct nla_policy pkt_filter_log_pol[] = {
+    [LFW_NLA_PKT_FILTER_LOG_TS] = { .type = NLA_U64 },
+    [LFW_NLA_PKT_FILTER_LOG_SRC_IP] = { .type = NLA_BE32 },
+    [LFW_NLA_PKT_FILTER_LOG_DEST_IP] = { .type = NLA_BE32 },
+    [LFW_NLA_PKT_FILTER_LOG_SRC_PORT] = { .type = NLA_BE16 },
+    [LFW_NLA_PKT_FILTER_LOG_DEST_PORT] = { .type = NLA_BE16 },
+    [LFW_NLA_PKT_FILTER_LOG_PROTO] = { .type = NLA_U8 },
+    [LFW_NLA_PKT_FILTER_LOG_TTL] = { .type = NLA_U8 },
+};
+
 static struct nla_policy lfw_pol[] = {
     [LFW_NLA_NUM_IP_PREFIX] = { .type = NLA_U32 },
     [LFW_NLA_IP_PREFIX] = NLA_POLICY_NESTED(lfw_ip_prefix_pol),
 
     [LFW_NLA_HCF_HISTORY] = NLA_POLICY_NESTED(hcf_ip_history_pol),
+
+    [LFW_NLA_PKT_FILTER_LOG] = NLA_POLICY_NESTED(pkt_filter_log_pol),
 
     [LFW_NLA_UNDER_ATTACK] = { .type = NLA_FLAG },
 
@@ -60,6 +72,7 @@ static struct genl_ops lfw_nl_ops[] = {
 static struct genl_multicast_group lfw_nl_mcgrps[] = {
     [LFW_NL_GROUP_LOG] = { .name = "log" },
     [LFW_NL_GROUP_HCF] = { .name = "hcf" },
+    [LFW_NL_GROUP_PKT_FILTER_LOG] = { .name = "pkt_filter_log" },
 };
 
 static struct genl_family lfw_nl_family = {
@@ -93,9 +106,9 @@ void lfw_nl_destroy(void)
     pr_info("librefw: Removing nl server\n");
 }
 
-int lfw_make_multicast_msg(u8 group, u8 cmd, void *data, lfw_nl_group_cb callback)
+int lfw_make_multicast_msg(u8 group, u8 cmd, void *data, lfw_nl_group_cb callback, int msgsize)
 {
-    struct sk_buff *skb = genlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+    struct sk_buff *skb = genlmsg_new(msgsize, GFP_KERNEL);
     if (!skb) {
         pr_err("librefw: failed to allocate memory for genl message\n");
         return -ENOMEM;

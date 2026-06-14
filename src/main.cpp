@@ -1,6 +1,7 @@
 #include "nl/command.hpp"
 #include "nl/hcf.hpp"
 #include "nl/log.hpp"
+#include "nl/packet_filter_log.hpp"
 
 #include <string>
 
@@ -21,9 +22,15 @@ int main(int argc, char *argv[])
         cmd.send_bogon_list(filename);
     });
 
-    CLI::App *log = app.add_subcommand("view_logs", "received logs from kernel module");
+    CLI::App *log = app.add_subcommand("view_logs", "receive logs from kernel module");
     log->callback([] {
         lfw::LogListener log;
+        log.wait_for_messages();
+    });
+
+    CLI::App *pkt_log = app.add_subcommand("view_pkt_filter_logs", "receive packet filter logs");
+    pkt_log->callback([] {
+        lfw::PacketFilterListener log;
         log.wait_for_messages();
     });
 
