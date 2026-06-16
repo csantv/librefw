@@ -4,6 +4,7 @@
 #include <netlink/genl/genl.h>
 #include <netlink/netlink.h>
 
+#include <ctime>
 #include <iostream>
 
 namespace lfw
@@ -12,10 +13,16 @@ namespace lfw
 PacketFilterListener::PacketFilterListener()
     : NetlinkMulticastBase(LFW_NL_FAMILY_NAME, "pkt_filter_log")
 {
+    struct timespec real_tp, boot_tp;
+    clock_gettime(CLOCK_REALTIME, &real_tp);
+    clock_gettime(CLOCK_MONOTONIC, &boot_tp);
+    boot_ns =
+        (uint64_t)(real_tp.tv_sec - boot_tp.tv_sec) * 1000000000ULL + (uint64_t)(real_tp.tv_nsec - boot_tp.tv_nsec);
 }
 
-auto PacketFilterListener::wait_for_messages_callback(struct nl_msg *msg, [[maybe_unused]] void *arg) -> int
+auto PacketFilterListener::wait_for_messages_callback(struct nl_msg *msg, void *arg) -> int
 {
+    auto *ptr = static_cast<PacketFilterListener *>(arg);
     auto *hdr = nlmsg_hdr(msg);
     struct nlattr *pos, *nested_pos;
     int rem, nested_rem;
@@ -25,7 +32,7 @@ auto PacketFilterListener::wait_for_messages_callback(struct nl_msg *msg, [[mayb
         {
             switch (nla_type(nested_pos)) {
                 case LFW_NLA_PKT_FILTER_LOG_TS: {
-                    uint64_t ts = nla_get_u64(nested_pos);
+                    uint64_t ts = nla_get_u64(nested_pos) + ptr->boot_ns;
                     std::cout << ts << std::endl;
                     break;
                 }

@@ -14,6 +14,8 @@ class PacketFilterListener final : public NetlinkMulticastBase
     static auto wait_for_messages_callback(struct nl_msg *msg, void *arg) -> int;
 
   private:
+    uint64_t boot_ns;
+
     auto on_message_received(nlattr_vec &tb) -> int override;
 };
 
