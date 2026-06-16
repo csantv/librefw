@@ -32,7 +32,7 @@ class NetlinkMulticastBase : public NetlinkBase
 {
   public:
     NetlinkMulticastBase(const char *family_name, const char *group_name, int bufsize = 4 * 1024 * 1024);
-    void wait_for_messages();
+    virtual void wait_for_messages();
 
     static auto parse_args(struct nl_msg *msg) -> nlattr_vec;
 
