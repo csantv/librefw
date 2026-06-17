@@ -1,5 +1,6 @@
 #include "nl/packet_filter_log.hpp"
 #include "nl_ops.h"
+#include "util/util.hpp"
 
 #include <netlink/genl/genl.h>
 #include <netlink/netlink.h>
@@ -9,6 +10,23 @@
 
 namespace lfw
 {
+
+struct PacketFilterEvent {
+    uint64_t ts;
+    uint32_t source_ip;
+    uint32_t dest_ip;
+    uint16_t source_port;
+    uint16_t dest_port;
+    uint8_t proto;
+    uint8_t ttl;
+
+    void print()
+    {
+        std::cout << "[" << ts << "]" << be32_ip_to_string(source_ip) << ":" << ntohs(source_port) << "=>"
+                  << be32_ip_to_string(dest_ip) << ":" << ntohs(dest_port) << " proto:" << +proto  << " ttl:" << +ttl
+                  << std::endl;
+    }
+};
 
 PacketFilterListener::PacketFilterListener()
     : NetlinkMulticastBase(LFW_NL_FAMILY_NAME, "pkt_filter_log")
@@ -28,30 +46,39 @@ auto PacketFilterListener::wait_for_messages_callback(struct nl_msg *msg, void *
     int rem, nested_rem;
     nla_for_each_attr(pos, static_cast<struct nlattr *>(nlmsg_data(hdr)), nlmsg_datalen(hdr), rem)
     {
+        if (nla_type(pos) != LFW_NLA_PKT_FILTER_LOG) {
+            continue;
+        }
+        PacketFilterEvent event{};
         nla_for_each_nested(nested_pos, pos, nested_rem)
         {
             switch (nla_type(nested_pos)) {
-                case LFW_NLA_PKT_FILTER_LOG_TS: {
-                    uint64_t ts = nla_get_u64(nested_pos) + ptr->boot_ns;
-                    std::cout << ts << std::endl;
+                case LFW_NLA_PKT_FILTER_LOG_TS:
+                    event.ts = nla_get_u64(nested_pos) + ptr->boot_ns;
                     break;
-                }
                 case LFW_NLA_PKT_FILTER_LOG_SRC_IP:
+                    event.source_ip = nla_get_u32(nested_pos);
                     break;
                 case LFW_NLA_PKT_FILTER_LOG_DEST_IP:
+                    event.dest_ip = nla_get_u32(nested_pos);
                     break;
                 case LFW_NLA_PKT_FILTER_LOG_SRC_PORT:
+                    event.source_port = nla_get_u16(nested_pos);
                     break;
                 case LFW_NLA_PKT_FILTER_LOG_DEST_PORT:
+                    event.dest_port = nla_get_u16(nested_pos);
                     break;
                 case LFW_NLA_PKT_FILTER_LOG_PROTO:
+                    event.proto = nla_get_u8(nested_pos);
                     break;
                 case LFW_NLA_PKT_FILTER_LOG_TTL:
+                    event.ttl = nla_get_u8(nested_pos);
                     break;
                 default:
-                    std::cerr << "got unknown attribute type\n" << std::endl;
+                    std::cerr << "got unknown attribute type"<< std::endl;
             }
         }
+        event.print();
     }
     return NL_OK;
 }
