@@ -36,6 +36,20 @@ auto PacketFilterListener::wait_for_messages_callback(struct nl_msg *msg, void *
                     std::cout << ts << std::endl;
                     break;
                 }
+                case LFW_NLA_PKT_FILTER_LOG_SRC_IP:
+                    break;
+                case LFW_NLA_PKT_FILTER_LOG_DEST_IP:
+                    break;
+                case LFW_NLA_PKT_FILTER_LOG_SRC_PORT:
+                    break;
+                case LFW_NLA_PKT_FILTER_LOG_DEST_PORT:
+                    break;
+                case LFW_NLA_PKT_FILTER_LOG_PROTO:
+                    break;
+                case LFW_NLA_PKT_FILTER_LOG_TTL:
+                    break;
+                default:
+                    std::cerr << "got unknown attribute type\n" << std::endl;
             }
         }
     }

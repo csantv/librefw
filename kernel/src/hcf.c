@@ -278,14 +278,11 @@ int hcf_register_ip_history(struct sk_buff *skb, struct genl_info *info)
     }
 
     int new_nodes = 0, new_ips = 0;
-    struct nlattr *pos = NULL;
-    int rem = 0;
+    struct nlattr *pos, *nested_pos;
+    int rem, nested_rem;
     nla_for_each_attr_type(pos, LFW_NLA_HCF_HISTORY, nlmsg_attrdata(info->nlhdr, GENL_HDRLEN),
                            nlmsg_attrlen(info->nlhdr, GENL_HDRLEN), rem)
     {
-        int nested_rem = 0;
-        struct nlattr *nested_pos = NULL;
-
         struct hcf_node *runner = new_tree;
         __be32 ip_addr_be = 0;
         u32 ip_addr = 0;
