@@ -19,6 +19,7 @@ struct PacketFilterEvent {
     uint16_t dest_port;
     uint8_t proto;
     uint8_t ttl;
+    uint8_t action; // 0: DENY  1: ACCEPT
 
     void print()
     {
@@ -74,6 +75,8 @@ auto PacketFilterListener::wait_for_messages_callback(struct nl_msg *msg, void *
                 case LFW_NLA_PKT_FILTER_LOG_TTL:
                     event.ttl = nla_get_u8(nested_pos);
                     break;
+                case LFW_NLA_PKT_FILTER_LOG_ACTION:
+                    event.action = nla_get_u8(nested_pos);
                 default:
                     std::cerr << "got unknown attribute type"<< std::endl;
             }

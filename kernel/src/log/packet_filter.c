@@ -38,6 +38,7 @@ struct pkt_filter_event {
     __be16 dest_port;
     u8 protocol;
     u8 ttl;
+    u8 action; // 0: DENY  1: ACCEPT
 } __packed RB_ALIGN_DATA;
 
 struct pkt_filter_flush_ctx {
@@ -148,6 +149,7 @@ int log_pkt_filter_event(struct iphdr *iph, struct sk_buff *skb)
     entry->protocol = iph->protocol;
     entry->source_port = 0;
     entry->dest_port = 0;
+    entry->action = 1;
 
     int thoff = skb_network_offset(skb) + (iph->ihl * 4);
     if (iph->protocol == IPPROTO_TCP) {
@@ -228,7 +230,8 @@ int process_rb_page(struct sk_buff *skb, void *data)
                     nla_put_be16(skb, LFW_NLA_PKT_FILTER_LOG_SRC_PORT, entry->source_port) < 0 ||
                     nla_put_be16(skb, LFW_NLA_PKT_FILTER_LOG_DEST_PORT, entry->dest_port) < 0 ||
                     nla_put_u8(skb, LFW_NLA_PKT_FILTER_LOG_PROTO, entry->protocol) < 0 ||
-                    nla_put_u8(skb, LFW_NLA_PKT_FILTER_LOG_TTL, entry->ttl) < 0) {
+                    nla_put_u8(skb, LFW_NLA_PKT_FILTER_LOG_TTL, entry->ttl) < 0 ||
+                    nla_put_u8(skb, LFW_NLA_PKT_FILTER_LOG_ACTION, entry->action) < 0) {
                     pr_err("librefw: failed to nest nla attributes in pkt filter log message\n");
                     nla_nest_cancel(skb, container);
                 }

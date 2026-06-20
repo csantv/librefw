@@ -33,6 +33,7 @@ static struct nla_policy pkt_filter_log_pol[] = {
     [LFW_NLA_PKT_FILTER_LOG_DEST_PORT] = { .type = NLA_BE16 },
     [LFW_NLA_PKT_FILTER_LOG_PROTO] = { .type = NLA_U8 },
     [LFW_NLA_PKT_FILTER_LOG_TTL] = { .type = NLA_U8 },
+    [LFW_NLA_PKT_FILTER_LOG_ACTION] = { .type = NLA_U8 },
 };
 
 static struct nla_policy lfw_pol[] = {
